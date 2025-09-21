@@ -1,8 +1,11 @@
+"use client"
 import React from 'react'
 import AboutDecorator from './AboutDecorator'
 import { FaArrowRightLong } from 'react-icons/fa6'
+import { useRoleModal } from '../context/RoleModalContext';
 
 export default function HowItWorks() {
+  const { openModal} = useRoleModal();
   return (
     <section id='howItWorks' className='bg-[#FFFAF0] w-full py-16 px-6 md:px-20'>
       <div className='max-w-5xl mx-auto'>
@@ -37,7 +40,7 @@ export default function HowItWorks() {
         </div>
       </div>
       <div className='flex justify-center mt-10'>
-        <button className='flex items-center justify-center gap-2 bg-[#424BE0] text-white transition px-8 py-4 rounded-full'>Get Started <FaArrowRightLong /></button>
+        <button onClick={openModal } className='flex items-center justify-center gap-2 bg-[#424BE0] text-white transition px-8 py-4 rounded-full'>Get Started <FaArrowRightLong /></button>
       </div>
       </div>
     </section>

@@ -1,12 +1,12 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import React, { useState } from 'react'
-import RoleSelectionModal from '../../app/signup/roleSelectionModal'
+import React from 'react'
+import { useRoleModal } from '../context/RoleModalContext'
 
 export default function NavBar() {
   const pathname = usePathname()
-  const [showRoleModal, setShowRoleModal] = useState(false)
+  const {openModal} = useRoleModal()
 
   const isActive = (path: string) => pathname === path
 
@@ -17,7 +17,7 @@ export default function NavBar() {
         <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16 '>
           {/* Brand Logo */}
           <div className='text-white font-bold text-xl'>
-            <Link href={'/'}>ETribe</Link>
+            <Link href={'/'}>ErrandTribe</Link>
           </div>
 
           {/* Navigation Links */}
@@ -40,12 +40,10 @@ export default function NavBar() {
           </ul>
             <div className='flex items-center space-x-8'>
              <Link href="/login" className={`${isActive("/login") ? "text-[#FDFDFD]" : "text-[#D1D1D1]"} hover:text-white transition-colors`}>Login</Link>
-
-             <button onClick={() => setShowRoleModal(true)} className='bg-[#F8F8FA] text-[#424BE0] px-4 py-2 rounded-2xl hover:border-2 hover:border-[#F8F8FA] hover:bg-transparent hover:text-white'>Sign Up</button>
+             <button onClick={openModal} className='bg-[#F8F8FA] text-[#424BE0] px-4 py-2 rounded-2xl transition duration-500 hover:border-2 hover:border-[#F8F8FA] hover:bg-transparent hover:text-white'>Sign Up</button>
             </div>
         </div>
       </nav>
-      <RoleSelectionModal isOpen={showRoleModal} onClose={() => setShowRoleModal(false)} />
     </>
   )
 }

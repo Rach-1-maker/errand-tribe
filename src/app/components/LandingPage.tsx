@@ -4,6 +4,7 @@ import { FaArrowRightLong } from "react-icons/fa6";
 import Image from 'next/image';
 import HeroDecorator from './HeroDecorator';
 import SecondDecorator from './SecondDecorator';
+import Link from 'next/link';
 
 export default function LandingPage() {
   return (
@@ -15,9 +16,13 @@ export default function LandingPage() {
           <div className='text-center md:text-left'>
           <h1 className='text-3xl md:text-6xl font-bold leading-tight max-w-lg mx-auto md:mx-0 mb-2 md:mb-4'>Your community trusted solution for everyday errands</h1>
           <p className='text-lg text-[#D1D1D1] max-w-lg mx-auto md:mx-0 mb-2 md:mb-6'>No more hassle. Post an errand, match with a local helper, relax.</p>
-          <div className='flex flex-col sm:flex-row gap-4 justify-center md:justify-start md:gap-8'>
-            <button className='bg-white text-[#424BE0] px-6 py-3 rounded-2xl font-medium hover:border-2 hover:border-white hover:text-white hover:bg-transparent transition'>Post Errands</button>
-            <button className='flex items-center justify-center gap-2 hover:border-2 hover:border-white hover:bg-transparent transition hover:animate-pulse px-6 py-3 rounded-2xl'>Join as Runner <span><FaArrowRightLong /></span></button>
+          <div className='relative z-20 flex flex-col sm:flex-row gap-4 justify-center md:justify-start md:gap-8'>
+            <Link href="/signup/tasker" className='inline-block text-center bg-white text-[#424BE0] px-6 py-3 rounded-2xl font-medium hover:border-2 hover:border-white hover:text-white hover:bg-transparent transition duration-500 cursor-pointer'>
+            Post Errands
+            </Link>
+            <Link href="/signup/runner" className='inline-flex items-center justify-center gap-2 hover:border-2 hover:border-white hover:bg-transparent transition duration-500 hover:animate-pulse px-6 py-3 rounded-2xl cursor-pointer'>
+            Join as Runner <span><FaArrowRightLong /></span>
+            </Link>
           </div>
           </div>
           {/* Image section */}
@@ -28,10 +33,10 @@ export default function LandingPage() {
             <HeroDecorator className='w-56 h-56 md:w-68 md:h-68 text-[#D8DBEA] z-10'/>
           </div>
         </div>
-          <div className='absolute top-72 left-0'>
-            <SecondDecorator className='w-56 h-56 md:w-66 md:h-66 text-[#424BE0] z-10 '/>
-          </div>
         </section> 
+          <div className='absolute bottom-0 left-0'>
+            <SecondDecorator className='w-40 h-40 md:w-56 md:h-56 text-[#424BE0] z-10 '/>
+          </div>
       </main>
     </div>
   )

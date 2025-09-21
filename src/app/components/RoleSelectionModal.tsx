@@ -5,23 +5,22 @@ import { BsFillPinAngleFill } from "react-icons/bs";
 import { FaArrowRight } from "react-icons/fa6";
 import { IoCloseOutline } from "react-icons/io5";
 import { PiBaseballHelmetFill } from "react-icons/pi";
+import { useRoleModal } from "../context/RoleModalContext";
+import { close } from "node:inspector/promises";
 
 
 
-type RoleModalProps = {
-    isOpen: boolean;
-  onClose: () => void;
-};
+export default function RoleSelectionModal() {
+  const {isOpen, closeModal} = useRoleModal()
 
-export default function RoleSelectionModal({isOpen, onClose}: RoleModalProps) {
-    if (!isOpen) return null;
+  if (!isOpen) return null;
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
       {/* Modal Container */}
       <div className="bg-gray-400 rounded-xl shadow-xl px-16 py-18 w-[90%] max-w-4xl relative">
         {/* Close Button */}
         <button
-          onClick={onClose}
+          onClick={closeModal}
           className="absolute top-8 right-8 text-gray-500 hover:text-gray-700">
             <IoCloseOutline className="text-3xl text-black " />
         </button>
@@ -41,7 +40,7 @@ export default function RoleSelectionModal({isOpen, onClose}: RoleModalProps) {
             <div className="flex flex-col items-center justify-center">
           <Link
           href="/signup/tasker"
-          onClick={onClose}
+          onClick={closeModal}
             className="text-[#252B42] text-center text-lg font-medium ">
                 Sign up as a Tasker
             </Link>
@@ -61,7 +60,7 @@ export default function RoleSelectionModal({isOpen, onClose}: RoleModalProps) {
             <div className="flex flex-col  items-center justify-center">
           <Link
           href="/signup/runner"
-          onClick={onClose}
+          onClick={closeModal}
             className="text-[#252B42] text-center text-lg font-medium">
                 Sign up as a Runner
             </Link>
@@ -74,5 +73,5 @@ export default function RoleSelectionModal({isOpen, onClose}: RoleModalProps) {
         </div>
       </div>
     </div>
-  );
+  )
 }

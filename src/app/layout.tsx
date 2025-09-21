@@ -1,3 +1,5 @@
+import RoleSelectionModal from "./components/RoleSelectionModal";
+import { RoleModalProvider } from "./context/RoleModalContext";
 import "./globals.css";
 import { Inter } from "next/font/google";
 
@@ -11,9 +13,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.className}`}>
-
+        <RoleModalProvider>
         {children}
+        <RoleSelectionModal />
+        </RoleModalProvider>
       </body>
     </html>
-  );
+  )
 }
