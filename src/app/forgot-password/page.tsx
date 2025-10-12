@@ -1,13 +1,13 @@
 import PasswordReset from "./passwordReset";
 
-interface Props {
+interface PasswordProps {
   params: {
     userType: "tasker" | "runner";
     userId: string
   };
 }
 
-export default function Page({ params }: Props) {
+export default function Page({ params }: PasswordProps) {
   const { userType, userId } = params;
 
   return <PasswordReset userType={userType} userId={userId} />;
