@@ -6,7 +6,6 @@ import { FaArrowRight } from "react-icons/fa6";
 import { IoCloseOutline } from "react-icons/io5";
 import { PiBaseballHelmetFill } from "react-icons/pi";
 import { useRoleModal } from "../context/RoleModalContext";
-import { close } from "node:inspector/promises";
 
 
 
@@ -39,7 +38,7 @@ export default function RoleSelectionModal() {
             </div>
             <div className="flex flex-col items-center justify-center">
           <Link
-          href="/signup/tasker"
+          href="/signup/select-role/tasker"
           onClick={closeModal}
             className="text-[#252B42] text-center text-lg font-medium ">
                 Sign up as a Tasker
@@ -59,7 +58,7 @@ export default function RoleSelectionModal() {
           <PiBaseballHelmetFill className="text-[#424BE0] bg-[#ECEDFC] text-5xl p-2 rounded-full mr-4"/>
             <div className="flex flex-col  items-center justify-center">
           <Link
-          href="/signup/runner"
+          href="/signup/select-role/runner"
           onClick={closeModal}
             className="text-[#252B42] text-center text-lg font-medium">
                 Sign up as a Runner

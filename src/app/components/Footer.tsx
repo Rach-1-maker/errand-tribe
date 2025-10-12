@@ -32,7 +32,7 @@ export default function Footer() {
 
       {/* Copyright */}
       <p className="text-center text-xs mt-6 opacity-70">
-        Copyright © ErrandTribe 2025. All Rights Reserved
+        Copyright &copy;  ErrandTribe 2025. All Rights Reserved
       </p>
     </footer>
   );

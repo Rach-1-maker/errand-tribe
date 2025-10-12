@@ -1,7 +1,6 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import React from 'react'
 import { useRoleModal } from '../context/RoleModalContext'
 
 export default function NavBar() {
@@ -17,7 +16,9 @@ export default function NavBar() {
         <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16 '>
           {/* Brand Logo */}
           <div className='text-white font-bold text-xl'>
-            <Link href={'/'}>ErrandTribe</Link>
+            <h1 className='ml-[-28]'>
+             ErrandTribe
+              </h1>
           </div>
 
           {/* Navigation Links */}

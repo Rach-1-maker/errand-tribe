@@ -1,9 +1,13 @@
-import React from 'react'
+import React from "react";
+import { HashLoader } from "react-spinners";
 
-export default function loading() {
+export default function Loading() {
   return (
-    <div className="flex items-center justify-center h-screen">
-      <h2 className="text-[#424BE0] bg-[#FFFAF0] text-4xl capitalize animate-pulse">Please wait a moment...</h2>
+    <div className="fixed inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-[#ECECFC] to-[#FFFAF0] z-50">
+      <HashLoader color="#424BE0" size={90} />
+      <p className="mt-6 text-[#424BE0] text-lg font-medium animate-pulse">
+        Please wait a moment...
+      </p>
     </div>
-  )
+  );
 }

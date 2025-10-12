@@ -7,7 +7,7 @@ import { FaApple } from "react-icons/fa";
 import { useRouter } from "next/navigation";
 
 type SignupFormProps = {
-  role: "Tasker" | "Runner";
+  role: "tasker" | "runner";
 }
 
 type FormValues = {
@@ -25,6 +25,7 @@ type FormErrors = {
 
 export default function SignupForm({ role }: SignupFormProps) {
   const [loading, setLoading] = useState<boolean>(false)
+  const [generalError, setGeneralError] = useState<string>("")
   const [isFormValid, setIsFormValid] = useState<boolean>(false)
   const router = useRouter()
 
@@ -47,7 +48,7 @@ export default function SignupForm({ role }: SignupFormProps) {
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 
   const validatePhone = (phone: string): boolean => {
-  // Nigerian format: 080..., 070..., 090..., 081..., or +234XXXXXXXXXX
+  // Nigerian format: 080..., 070..., 090..., 081..., or +234
   const nigeriaRegex = /^(?:\+234|0)[789][01]\d{8}$/;
 
   // Generic international E.164 format: + followed by 1–15 digits
@@ -100,34 +101,67 @@ export default function SignupForm({ role }: SignupFormProps) {
     }
   }, [formValues, errors])
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!isFormValid) return; // prevent submit if invalid
     setLoading(true);
+    setGeneralError ("")
 
     try {
-      localStorage.setItem("signupData", JSON.stringify({ ...formValues, role }))
-    
-      router.push(`/signup/create-password?role=${role}`)
+      const payload = {
+        first_name: formValues.firstName,
+        last_name: formValues.lastName,
+        email: formValues.email,
+        phone_number: formValues.phone,
+        role: role.toLowerCase(), 
+      }
+
+      const response = await fetch(`${API_URL}/auth/signup/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        if (data.errors) {
+          setErrors((prev) => ({
+            ...prev,
+            email: data.errors.email || "",
+            phone: data.errors.phone || "",
+          }))
+        } else {
+          setGeneralError(data.message || "Signup failed. Please try again.")
+        }
+        return
+      }
+      
+      const userId = data.user_id
+      router.push(`/signup/${role}/${userId}/create-password?email=${encodeURIComponent(formValues.email)}`)
     } catch (err) {
       console.error(err);
-      alert("Something went wrong. Try again!");
+      setGeneralError("Unable to connect. Please try again.")
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
-    <div className="h-screen flex overflow-hidden">
+    <div className="h-screen flex overflow-hidden bg-[#424BE0]">
       {/* Left Section (Form) */}
-      <div className="flex-1 flex flex-col justify-center items-center rounded-tr-3xl rounded-br-3xl bg-white px-8 md:px-16 overflow-hidden">
+      <div className="flex-1 flex flex-col justify-center items-center rounded-tr-[60px] rounded-br-[60px] bg-white px-8 md:px-16 overflow-hidden">
         <div className="w-full max-w-md ">
           {/* Heading */}
           <h1 className="text-2xl md:text-3xl font-bold mb-1 text-[#252B42]">
             Signup as a {role}
           </h1>
           <p className="mb-6 text-gray-600">
-            {role === "Tasker"
+            {role === "tasker"
               ? "Simplify your life by letting runners handle your errands"
               : "Start earning and completing tasks near you today"}
           </p>
@@ -138,57 +172,63 @@ export default function SignupForm({ role }: SignupFormProps) {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   First Name
-                </label>
                 <input
                   name="firstName"
                   type="text"
                   value={formValues.firstName}
                   onChange={handleChange}
+                  autoComplete="given-name"
                   className="border border-[#E6E5E5] focus:outline-none focus:ring-1 focus:ring-[#CBCCF8] rounded-lg px-4 py-3 w-full"
                   required
-                />
+                  />
+                </label>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Last Name
-                </label>
                 <input
                   name="lastName"
                   type="text"
                   value={formValues.lastName}
                   onChange={handleChange}
+                  autoComplete="family-name"
                   className="border border-[#E6E5E5] focus:outline-none focus:ring-1 focus:ring-[#CBCCF8]  rounded-lg px-4 py-3 w-full"
                   required
-                />
+                  />
+                </label>
               </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Email Address
-              </label>
               <input
                 name="email"
                 type="email"
                 value={formValues.email}
                 onChange={handleChange}
+                autoComplete="email"
                 className="border border-[#E6E5E5] focus:outline-none focus:ring-1 focus:ring-[#CBCCF8] rounded-lg px-4 py-3 w-full"
                 required
-              />
+                />
+              </label>
+              {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Phone Number
-              </label>
               <input
                 name="phone"
                 type="tel"
                 value={formValues.phone}
                 onChange={handleChange}
+                autoComplete="tel"
                 className="border border-[#E6E5E5] focus:outline-none focus:ring-1 focus:ring-[#CBCCF8] rounded-lg px-4 py-3 w-full"
                 required
-              />
+                />
+                </label>
+              {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
             </div>
 
             {/* Continue Button */}
@@ -203,6 +243,9 @@ export default function SignupForm({ role }: SignupFormProps) {
             >
               {loading ? "Signing up..." : `Continue as ${role}`}
             </button>
+            {generalError && (
+              <p className="text-red-500 text-sm text-center mt-2">{generalError}</p>
+            )}
           </form>
 
           {/* OR Divider */}
@@ -215,11 +258,11 @@ export default function SignupForm({ role }: SignupFormProps) {
           {/* Social Auth Buttons */}
           <div className="flex flex-col items-center w-full mt-4">
           <button className="flex items-center border-[#CBCCF8] justify-center text-[#979797] w-4/5 py-2 px-3 mb-3 border rounded-lg hover:bg-gray-50">
-            <FcGoogle className="text-xl mr-2" />
+            <FcGoogle className="text-lg mr-2" />
             Continue with Google
           </button>
           <button className="flex items-center justify-center border-[#CBCCF8] text-[#979797] w-4/5 px-3 py-2 border rounded-lg hover:bg-gray-50">
-            <FaApple className="text-xl mr-2" />
+            <FaApple className="text-lg mr-2" />
             Continue with Apple
           </button>
           </div>
@@ -228,20 +271,21 @@ export default function SignupForm({ role }: SignupFormProps) {
       </div>
 
       {/* Right Section (Illustration) */}
-      <div className="hidden md:flex flex-1 bg-[#424BE0] items-center justify-center text-center px-8">
+      <div className="hidden md:flex flex-1 items-center justify-center text-center px-8">
         <div>
           <h2 className="text-white text-2xl md:text-3xl font-semibold mb-6 max-w-lg">
-            {role === "Tasker"
+            {role === "tasker"
               ? "Whatever your errand is,\n Errand Tribe's got you \n covered!"
               : "Earn with every errand! safe,\n seamless, and rewarding \n with Errand Tribe."}
           </h2>
           <Image
-            src={role === "Tasker" ? "/tasker-illustration.png" : "/runner-illustration.png"}
-            alt={role === "Tasker" ? "Tasker Illustration" : "Runner Illustration"}
+            src={role === "tasker" ? "/tasker-illustration.png" : "/runner-illustration.png"}
+            alt={role === "tasker" ? "Tasker Illustration" : "Runner Illustration"}
             width={400}
             height={400}
-            className="mx-auto"
+            className="mx-auto" priority
           />
+
         </div>
       </div>
     </div>

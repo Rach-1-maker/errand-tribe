@@ -88,7 +88,7 @@ export default function Testimonies() {
                 }`}
                 />
           ))}
-                </div>
+        </div>
         </div>
       </div>
     </section>

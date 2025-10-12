@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, ReactNode } from "react";
 
 type RoleModalContextType = {
   isOpen: boolean;
@@ -13,7 +13,7 @@ export const RoleModalProvider = ({ children }: { children: ReactNode }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const openModal = () => setIsOpen(true);
-  const closeModal = () => setIsOpen(false);
+  const closeModal = () => setIsOpen(false)
 
   return (
     <RoleModalContext.Provider value={{ isOpen, openModal, closeModal }}>

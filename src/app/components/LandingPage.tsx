@@ -1,4 +1,3 @@
-import React from 'react'
 import NavBar from './NavBar'
 import { FaArrowRightLong } from "react-icons/fa6";
 import Image from 'next/image';
@@ -20,14 +19,14 @@ export default function LandingPage() {
             <Link href="/signup/tasker" className='inline-block text-center bg-white text-[#424BE0] px-6 py-3 rounded-2xl font-medium hover:border-2 hover:border-white hover:text-white hover:bg-transparent transition duration-500 cursor-pointer'>
             Post Errands
             </Link>
-            <Link href="/signup/runner" className='inline-flex items-center justify-center gap-2 hover:border-2 hover:border-white hover:bg-transparent transition duration-500 hover:animate-pulse px-6 py-3 rounded-2xl cursor-pointer'>
+            <Link href="/signup/runner" className='inline-flex items-center justify-center gap-2 border-2 border-white bg-transparent transition duration-500  px-6 py-3 rounded-2xl cursor-pointer'>
             Join as Runner <span><FaArrowRightLong /></span>
             </Link>
           </div>
           </div>
           {/* Image section */}
           <div className='flex justify-center md:justify-end'>
-          <Image src = "/herosection-image.png" alt='herosection image' width={400} height={400} className='object-contain w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg max-h-[80vh] px-8 md:px-8 py-8 md:py-10 bg-[#E5E6FB] rounded-tr-[100px] rounded-bl-[100px]' priority/>
+          <Image src = "/herosection-image.png" alt='herosection image' width={"400"} height={"400"} className='object-contain w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg max-h-[80vh] px-8 md:px-8 py-8 md:py-10 bg-[#E5E6FB] rounded-tr-[100px] rounded-bl-[100px]' priority/>
 
           <div className='absolute bottom-0 right-[-4rem] md:right-[-8rem]'>
             <HeroDecorator className='w-56 h-56 md:w-68 md:h-68 text-[#D8DBEA] z-10'/>

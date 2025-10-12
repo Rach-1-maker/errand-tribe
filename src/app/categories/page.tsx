@@ -9,27 +9,27 @@ type Category = {
 
 const categories: Category[] = [
   {
-    img: "/cat1.png",
+    img: "/local-errands.png",
     title: "Local Errands",
     desc: "Admin runs, form submissions, location pickups",
   },
   {
-    img: "/cat2.png",
+    img: "/supermarkets.png",
     title: "Supermarket Runs",
     desc: "Have groceries delivered to your door",
   },
   {
-    img: "/cat3.png",
+    img: "/pickup.png",
     title: "Pickup & Delivery",
     desc: "We transport items safely and securely",
   },
   {
-    img: "/cat4.png",
+    img: "/care.png",
     title: "Care Tasks",
     desc: "Check-ins and compassionate care",
   },
   {
-    img: "/cat5.png",
+    img: "/verifyIt.png",
     title: "Verify It",
     desc: "Property & identity checks, business legitimacy",
   }

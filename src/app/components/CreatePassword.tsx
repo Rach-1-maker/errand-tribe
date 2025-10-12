@@ -5,36 +5,42 @@ import React, { useState, useEffect } from "react";
 import { FcGoogle } from "react-icons/fc";
 import { FaApple } from "react-icons/fa";
 import Image from "next/image";
-import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
+import { AiOutlineEye} from "react-icons/ai";
 import { RxEyeClosed } from "react-icons/rx";
+import { MdOutlineArrowBackIos } from "react-icons/md";
 
-export default function CreatePasswordPage() {
-  const searchParams = useSearchParams()
+
+interface PasswordPageProps {
+  
+    role: "tasker" | "runner"
+    userId: string
+  }
+
+
+export default function CreatePassword({ role, userId }: PasswordPageProps) {
+
   const router = useRouter()
-  const role = searchParams.get("role") || "User";
-
-  const [userData, setUserData] = useState<any>(null)
   const [formValues, setFormValues] = useState({
     password: "",
     confirmPassword: "",
+    email: ""
   });
-
+  const searchParams = useSearchParams()
+  const email = searchParams.get("email") || ""
   const [errors, setErrors] = useState("")
+  const [generalError, setGeneralError] = useState("")
   const [isFormValid, setIsFormValid] = useState(false);
   const [loading, setLoading] = useState(false);
-
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
-    const savedData = localStorage.getItem("signupData")
-    if (!savedData) {
+    if (!userId) {
+      setGeneralError("Invalid signup session. Please start the signup process again.");
         router.push('/signup')
-    } else {
-        setUserData(JSON.parse(savedData))
     }
     
-    }, [router])
+    }, [userId, router])
 
     // Password validator
   const validatePassword = (password: string): boolean => {
@@ -70,63 +76,92 @@ export default function CreatePasswordPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormValues({ ...formValues, [e.target.name]: e.target.value });
+    setGeneralError("")
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!isFormValid || !userData) return;
-    setLoading(true);
+    if (!userId) {
+      setGeneralError("User ID is missing. Please restart the signup process.")
+      return; 
+    }
+
+    if (!isFormValid) return
+    setLoading(true)
+    setGeneralError("")
+
+
+    const API_URL = process.env.NEXT_PUBLIC_API_URL;
+    if (!API_URL) {
+    console.error("API URL is not defined.");
+    setGeneralError("Configuration error. Please contact support.")
+    setLoading(false)
+    return;
+  }
+
+  const requestUrl = `${API_URL}/users/${userId}/set-password/`;
 
     try {
       // API to complete signup (with role info attached)
-      console.log("API URL:", process.env.NEXT_PUBLIC_API_URL)
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/register/`, {
+      
+      const res = await fetch(requestUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ ...userData, ...formValues, role }),
+        body: JSON.stringify({
+          password: formValues.password,
+          confirm_password: formValues.confirmPassword
+          }),
       })
 
     const data = await res.json()
 
     if (!res.ok) {
-        const errorMsg = (data?.message || "Something went wrong, please try again")
-        throw new Error(errorMsg)
+        const errorMsg = (data?.message || "Failed to set password, please try again")
+        setGeneralError(errorMsg)
+        return
     }
 
-    localStorage.removeItem("signupData")
+    router.push(`/signup/${role}/${userId}/verify-email?email=${encodeURIComponent(email)}`)
 
-    router.push('/verify-email')
-    } catch (err: any) {
-      console.error(err);
-        setErrors(err.message)
-      
+    } catch (error: any) {
+        setGeneralError(error.message || "Unable to connect. Please try again.")
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="h-screen flex rounded-tr-3xl rounded-br-3xl overflow-hidden">
+    <div className="h-screen flex bg-[#424BE0] overflow-hidden">
       {/* Left Section (Form) */}
-      <div className="flex-1 flex flex-col justify-center items-center bg-white px-8 md:px-16">
+      <div className="flex-1 flex flex-col justify-center items-center rounded-tr-[60px] rounded-br-[60px] bg-white px-8 md:px-12">
         <div className="w-full max-w-md">
+          {/* Back Button */}
+          <button
+            onClick={() => router.back()}
+            className="flex items-center text-lg text-gray-600 mb-6"
+          >
+            <MdOutlineArrowBackIos className="mr-2 text-lg" /> Back
+          </button>
           {/* Heading */}
           <h1 className="text-2xl md:text-3xl font-bold mb-1 text-[#252B42]">
             Signup as a {role}
           </h1>
           <p className="mb-6 text-gray-600">
-            {role === "Tasker"
+            {role === "tasker"
               ? "Simplify your life by letting runners handle your errands"
               : "Start earning and completing tasks near you today"}
           </p>
 
           {/* Form */}
+          {generalError && (
+            <div className="mb-4">
+              <p className="text-red-600 text-sm">{generalError}</p>
+            </div>
+          )}
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Password
-              </label>
               <input
                 name="password"
                 type={showPassword ? "text" : "password"}
@@ -134,11 +169,13 @@ export default function CreatePasswordPage() {
                 onChange={handleChange}
                 className="border border-[#E6E5E5] focus:outline-none focus:ring-1 focus:ring-[#CBCCF8] rounded-lg px-4 py-3 w-full pr-10"
                 required
-              />
-              <span className="absolute right-6 top-10 cursor-pointer text-gray-500" onClick={() => setShowPassword(!showPassword)}>
+                disabled={!userId}
+                />
+                </label>
+              <span className="absolute right-6 top-8 cursor-pointer text-gray-500" onClick={() => setShowPassword(!showPassword)}>
                 {showPassword ? (
-                    <AiOutlineEye size={20} />
-                  ) : (
+                  <AiOutlineEye size={20} />
+                ) : (
                      <RxEyeClosed size={20} />
                     )}
               </span>
@@ -147,7 +184,6 @@ export default function CreatePasswordPage() {
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Confirm Password
-              </label>
               <input
                 name="confirmPassword"
                 type={showConfirmPassword ? "text" : "password"}
@@ -155,8 +191,10 @@ export default function CreatePasswordPage() {
                 onChange={handleChange}
                 className="border border-[#E6E5E5] focus:outline-none focus:ring-1 focus:ring-[#CBCCF8] rounded-lg px-4 py-3 w-full"
                 required
-              />
-              <span className="absolute right-6 top-10 cursor-pointer text-gray-500" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                disabled={!userId}
+                />
+                </label>
+              <span className="absolute right-6 top-8 cursor-pointer text-gray-500" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
                 {showConfirmPassword ? (
                     <AiOutlineEye size={20} />  
                   ) : (
@@ -171,11 +209,11 @@ export default function CreatePasswordPage() {
             <button
               type="submit"
               className={`w-full py-3 rounded-lg font-semibold transition ${
-                isFormValid && !loading
+                isFormValid && !loading && userId
                   ? "bg-[#424BE0] text-white"
                   : "bg-gray-300 text-gray-500 cursor-not-allowed"
               }`}
-              disabled={!isFormValid || loading}
+              disabled={!isFormValid || loading || !userId}
             >
               {loading ? "Processing..." : "Continue"}
             </button>
@@ -203,16 +241,16 @@ export default function CreatePasswordPage() {
       </div>
 
       {/* Right Section (Illustration) */}
-      <div className="hidden md:flex flex-1 bg-[#424BE0] items-center justify-center text-center px-8">
+      <div className="hidden md:flex flex-1 items-center justify-center text-center px-8">
         <div>
          <h2 className="text-white text-2xl md:text-3xl font-semibold mb-6 max-w-lg">
-            {role === "Tasker"
+            {role === "tasker"
               ? "Whatever your errand is,\n Errand Tribe's got you \n covered!"
               : "Earn with every errand! safe,\n seamless, and rewarding \n with Errand Tribe."}
         </h2>
         <Image
-            src={role === "Tasker" ? "/tasker-illustration.png" : "/runner-illustration.png"}
-            alt={role === "Tasker" ? "Tasker Illustration" : "Runner Illustration"}
+            src={role === "tasker" ? "/tasker-illustration.png" : "/runner-illustration.png"}
+            alt={role === "tasker" ? "Tasker Illustration" : "Runner Illustration"}
             width={400}
             height={400}
             className="mx-auto"
