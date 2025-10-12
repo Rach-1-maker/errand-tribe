@@ -30,7 +30,7 @@ async function handleResponse(res: Response) {
       return {success: false, message:msg || "Request failed"}
     }
     return {success: true, ...data};
-  } catch (err) {
+  } catch (error) {
     // if JSON parse fails but res.ok is true, return raw text
     if (res.ok) {
       return {success: true, message: text }

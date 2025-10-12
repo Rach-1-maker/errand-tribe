@@ -12,14 +12,11 @@ interface verifyEmailProps {
     userId: string
   }
 
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL
-
 export default function VerifyEmailPage({ role, userId }: verifyEmailProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialEmail = searchParams.get("email") || "";
-  const [email, setEmail] = useState(initialEmail)
+  const [email] = useState(initialEmail)
   const [otp, setOtp] = useState<string[]>(["", "", "", "", "", ""]); // 6 digits
   const [timer, setTimer] = useState(0)
   const [error, setError] = useState("");
@@ -193,7 +190,7 @@ export default function VerifyEmailPage({ role, userId }: verifyEmailProps) {
 
             {/* Resend */}
             <p className="text-sm text-gray-600 text-center">
-              Didn't receive the code?{" "}
+              Didn&aos;t receive the code?{" "}
               <button
                 type="button"
                 onClick={handleResend}

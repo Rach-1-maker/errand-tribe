@@ -27,7 +27,7 @@ export default function HowItWorks() {
           <AboutDecorator className="w-16 h-16 block" />
           <p className='text-[#252B42] text-lg font-semibold'>Get matched</p>
           <p className='text-[#374754] max-w-xs mt-1'>
-            We'll connect you with a verified local Runner which is fast and secured
+            We&apos;ll connect you with a verified local Runner which is fast and secured
           </p>
         </div>
         {/* Card 3 */}
@@ -35,7 +35,7 @@ export default function HowItWorks() {
           <AboutDecorator className="w-16 h-16 block" />
           <p className='text-[#252B42] text-lg font-semibold'>Track and approve</p>
           <p className='text-[#374754] max-w-xs mt-1'>
-            Stay updated in real-time. Approve when it's done and pay safely
+            Stay updated in real-time. Approve when it&apos;s done and pay safely
           </p>
         </div>
       </div>

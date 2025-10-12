@@ -72,7 +72,7 @@ export default function WithdrawalMethod() {
           onClick={() => history.back()}
           className="text-gray-600 text-sm mb-10 hover:text-gray-800"
         >
-          ← Back
+           Back
         </button>
 
         <h1 className="text-2xl md:text-3xl font-bold text-[#1A202C] mb-2">
@@ -115,7 +115,7 @@ export default function WithdrawalMethod() {
           {/* Account Number */}
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium text-[#333]">
-              What's your account number?
+              What&apos;s your account number?
             </label>
             <input
               type="text"

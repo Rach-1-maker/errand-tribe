@@ -34,8 +34,6 @@ export default function ErrandPreference({role, userId}: ErrandSelectionProps) {
     if (selected.length === 0) return
     setLoading(true)
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
     try {
       
     const userPreferences = {

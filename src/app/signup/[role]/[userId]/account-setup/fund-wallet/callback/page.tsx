@@ -46,7 +46,7 @@ export default function FundWalletCallback() {
           setStatus("failed");
           setMessage(data.error || data.message || "Verification failed");
         }
-      } catch (err) {
+      } catch (error) {
         setStatus("failed");
         setMessage("Unable to verify payment at this time.");
       }

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter} from "next/navigation";
 import { MdOutlineArrowBackIos } from "react-icons/md";
 import { FaLock, FaRegStar } from "react-icons/fa";
 import { HiOutlineCurrencyDollar } from "react-icons/hi";

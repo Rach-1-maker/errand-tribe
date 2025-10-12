@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter} from "next/navigation";
 import Image from "next/image";
 import { MdOutlineArrowBackIos } from "react-icons/md";
 import { IoIosArrowDown } from "react-icons/io";

@@ -125,7 +125,7 @@ export default function PasswordReset({
     try {
       await apiSendReset(email, userType);
       startTimer();
-    } catch (err) {
+    } catch (error) {
       setOtpError("Unable to resend code. Try again later.");
     } finally {
       setIsSubmitting(false);
@@ -154,8 +154,8 @@ export default function PasswordReset({
       setPassword("");
       setConfirm("");
       setPasswordError(null);
-    } catch (err: any) {
-      setOtpError(err.message || "Invalid or expired code.");
+    } catch (error: any) {
+      setOtpError(error.message || "Invalid or expired code.");
     } finally {
       setIsSubmitting(false);
     }
@@ -189,7 +189,7 @@ export default function PasswordReset({
     try {
       await apiResetPassword(email, password, userType, userId);
       setStep(4);
-    } catch (err) {
+    } catch (error) {
       setPasswordError("Unable to reset password. Try again later.");
     } finally {
       setIsSubmitting(false);
@@ -226,7 +226,7 @@ export default function PasswordReset({
             <form onSubmit={handleContinue}>
               <h2 className="text-xl font-semibold text-[#1A202C] mb-4">Forgot password?</h2>
               <p className="text-sm text-[#222124] mb-6">
-                Don't worry, it happens. Please enter the email associated with your
+                Don&apos;t worry, it happens. Please enter the email associated with your
                 account.
               </p>
 
