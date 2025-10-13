@@ -4,10 +4,8 @@ import LoginForm from "../components/LoginForm";
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-[#ECEDFC] flex items-center justify-center p-6">
-      <div className="w-full max-w-md bg-white shadow-md rounded-2xl p-8">
+      <div>
         <LoginForm />
       </div>
-    </div>
   );
 }
