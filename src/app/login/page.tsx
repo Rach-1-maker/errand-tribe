@@ -2,42 +2,37 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import { useRoleModal } from "../context/RoleModalContext";
+import { useRouter } from "next/navigation";
 import { FcGoogle } from "react-icons/fc";
 import { FaApple } from "react-icons/fa";
-import { useRouter } from "next/navigation";
 import { RxEyeClosed } from "react-icons/rx";
 import { AiOutlineEye } from "react-icons/ai";
+import { useRoleModal } from "../context/RoleModalContext";
 
-type LoginFormProps = {
-  role: "tasker" | "runner";
-};
-
-export default function LoginForm({ role }: LoginFormProps) {
-  const [email, setEmail] = useState("")
-  const [rememberMe, setRememberMe] = useState(false)
+export default function LoginForm() {
+  const [email, setEmail] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [lastName, setLastName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("")  // error state
+  const [error, setError] = useState("");
   const router = useRouter();
-  const { openModal } = useRoleModal()
+  const { openModal } = useRoleModal();
 
-  // check if fields are filled
   const isFormValid = email.trim() !== "" && password.trim() !== "";
 
-  useEffect(() =>{
-
-    const savedEmail = localStorage.getItem("rememberedEmail")
-    if (savedEmail) {
-        setEmail(savedEmail)
-        setRememberMe(true)
-    }
-  }, [])
-
+  // Load remembered email if available
   useEffect(() => {
-    // fetch last name saved during signup
+    const savedEmail = localStorage.getItem("rememberedEmail");
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+    }
+  }, []);
+
+  // Optional — preload name from signup if stored locally
+  useEffect(() => {
     const storedData = localStorage.getItem("signupData");
     if (storedData) {
       const parsed = JSON.parse(storedData);
@@ -45,50 +40,72 @@ export default function LoginForm({ role }: LoginFormProps) {
     }
   }, []);
 
+  // Handle login submission
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!isFormValid) return;
 
     setLoading(true);
-    setError("")
+    setError("");
+
     try {
-        const API_URL = process.env.NEXT_PUBLIC_API_URL 
-        if (!API_URL) throw new Error("API URL not set in .env")
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      if (!API_URL) throw new Error("API URL not set in .env");
 
-        const res = await fetch(`${API_URL}/api/auth/login/`, {
-            method: "POST",
-            headers: { "content-Type": "application/json"},
-            body: JSON.stringify({ email, password, role }),
-        })
+      const res = await fetch(`${API_URL}/api/auth/login/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
 
-        const data = await res.json()
+      const data = await res.json();
 
-        if (!res.ok) {
-          const msg = data?.message?.toLowerCase() || "";
-
-        // backend should return message like "Invalid email" or "Wrong password"
-          if (msg.includes("email")) {
-            setError("Email does not match our credentials");
-          } else if (msg.includes("password")) {
-            setError("Invalid password");
-          } else {
-            setError(data?.message || "Login failed, please try again.");
-          }
-          return;
+      if (!res.ok) {
+        const msg = data?.message?.toLowerCase() || "";
+        if (msg.includes("email")) {
+          setError("Email does not match our records.");
+        } else if (msg.includes("password")) {
+          setError("Invalid password.");
+        } else {
+          setError(data?.message || "Login failed. Please try again.");
         }
+        return;
+      }
 
-    //  Save email if "Remember me" is checked
-    if (rememberMe) {
-        localStorage.setItem("rememberedEmail", email)
-    } else {
-        localStorage.removeItem("rememberedEmail")
-    }
+      // Expected backend response:
+      // {
+      //   "token": "jwt_or_session_token",
+      //   "user": { "id": 1, "email": "x@y.com", "role": "runner" }
+      // }
 
+      const { token, user } = data;
 
-      router.push(`/${role}/dashboard`);
+      if (!token || !user) {
+        throw new Error("Incomplete response from server");
+      }
+
+      // Save user session
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
+
+      // Remember email if checked
+      if (rememberMe) {
+        localStorage.setItem("rememberedEmail", email);
+      } else {
+        localStorage.removeItem("rememberedEmail");
+      }
+
+      // Redirect user based on role
+      if (user.role === "tasker") {
+        router.push("/tasker/dashboard");
+      } else if (user.role === "runner") {
+        router.push("/runner/dashboard");
+      } else {
+        router.push("/"); // fallback
+      }
     } catch (err) {
-      console.error("Login failed", err);
-      setError("Something went wrong. Please try again")
+      console.error("Login failed:", err);
+      setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -115,7 +132,7 @@ export default function LoginForm({ role }: LoginFormProps) {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter valid email"
+                placeholder="Enter your email"
                 className="border border-[#E6E5E5] text-sm focus:outline-none focus:ring-1 focus:ring-[#CBCCF8] rounded-lg px-4 py-3 w-full"
                 required
               />
@@ -140,24 +157,27 @@ export default function LoginForm({ role }: LoginFormProps) {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-8 top-4 cursor-pointer text-gray-500"
                 >
-                  {showPassword ? <AiOutlineEye size={20} /> : <RxEyeClosed size={20}/>}
+                  {showPassword ? (
+                    <AiOutlineEye size={20} />
+                  ) : (
+                    <RxEyeClosed size={20} />
+                  )}
                 </button>
               </div>
             </div>
 
             {/* Error message */}
-            {error && (
-                <p className="text-red-500 text-sm mt-2">{error}</p>
-            )}
+            {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
 
             {/* Remember me & Forgot password */}
             <div className="flex items-center justify-between text-xs">
               <label className="flex items-center gap-2 cursor-pointer">
-                <input 
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="accent-[#424BE0]" />
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="accent-[#424BE0]"
+                />
                 Remember me
               </label>
               <a
@@ -219,13 +239,11 @@ export default function LoginForm({ role }: LoginFormProps) {
       <div className="hidden md:flex flex-1 items-center justify-center text-center px-8">
         <div>
           <h2 className="text-white text-2xl md:text-3xl font-semibold mb-6 max-w-lg">
-            {role === "tasker"
-              ? "Whatever your errand is,\n Errand Tribe's got you covered!"
-              : "Earn with every errand! Safe,\n seamless, and rewarding with Errand Tribe."}
+            {"Whatever your errand is, Errand Tribe's got you covered!"}
           </h2>
           <Image
-            src='/login-illustration.png'
-            alt={role === "tasker" ? "Tasker Illustration" : "Runner Illustration"}
+            src="/login-illustration.png"
+            alt="Login Illustration"
             width={400}
             height={400}
             className="mx-auto"

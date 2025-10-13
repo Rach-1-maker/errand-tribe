@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { FaArrowLeftLong } from "react-icons/fa6";
+import { MdOutlineArrowBackIos } from "react-icons/md";
 
 export default function PasswordReset({
   userType = "tasker",
@@ -28,6 +30,8 @@ export default function PasswordReset({
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [passwordError, setPasswordError] = useState<string | null>(null);
+
+  const router = useRouter()
 
   
   function isValidEmail(value: string) {
@@ -217,9 +221,12 @@ export default function PasswordReset({
   return (
     <div className="min-h-screen bg-[#ECEDFC] flex items-center justify-center p-6">
       <div className="w-full max-w-md">
-        <div className="mb-6">
-          <BackRow />
-        </div>
+        <button
+          onClick={() => router.back()}
+          className="flex items-center text-gray-600 hover:text-gray-800 mb-8"
+        >
+          <MdOutlineArrowBackIos className="mr-2" /> Back
+          </button>
 
         <div className="bg-white rounded-2xl shadow-md px-8 py-24">
           {step === 1 && (
