@@ -111,7 +111,7 @@ export default function LocationPermissionPage({role, userId}: LocationAccessPro
 
             {/* Dropdown Options */}
             {showDropdown && (
-              <div className={`absolute left-16 mt-1 w-[80%] bg-white border border-gray-200 rounded-lg shadow-sm transition-all duration-300 overflow-hidden z-10 ${
+              <div className={`absolute left-16 ml-8 mt-1 w-[33%] bg-white border border-gray-200 rounded-lg shadow-sm transition-all duration-300 overflow-hidden z-10 ${
                 showDropdown ? "max-h-40 opacity-100" : "max-h-0 opacity-0"
               }`}>
                 <div
