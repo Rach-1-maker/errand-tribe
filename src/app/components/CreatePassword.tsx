@@ -26,13 +26,18 @@ export default function CreatePassword({ role, userId }: PasswordPageProps) {
     email: ""
   });
   const searchParams = useSearchParams()
-  const email = searchParams.get("email") || ""
+  const [email, setEmail] = useState("")
   const [errors, setErrors] = useState("")
   const [generalError, setGeneralError] = useState("")
   const [isFormValid, setIsFormValid] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  useEffect(() => {
+    const storedEmail = sessionStorage.getItem("signup_email")
+    if (storedEmail) setEmail(storedEmail)
+  }, [])
 
   useEffect(() => {
     if (!userId) {
@@ -121,7 +126,8 @@ export default function CreatePassword({ role, userId }: PasswordPageProps) {
         return
     }
 
-    router.push(`/signup/${role}/${userId}/verify-email?email=${encodeURIComponent(email)}`)
+    sessionStorage.setItem("signup_email", email)
+    router.push(`/signup/${role}/${userId}/verify-email`)
 
     } catch (error: any) {
         setGeneralError(error.message || "Unable to connect. Please try again.")

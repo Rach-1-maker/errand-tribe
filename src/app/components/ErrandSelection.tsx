@@ -3,6 +3,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { MdOutlineArrowBackIos } from "react-icons/md";
+import SuccessPopup from "./SuccessPopUp";
 
 interface ErrandSelectionProps {
   role: string
@@ -13,6 +14,7 @@ export default function ErrandPreference({role, userId}: ErrandSelectionProps) {
   const router = useRouter();
   const [selected, setSelected] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const errands = [
     { id: "local", label: "Local Errands", img: "/local-errands.png" },
@@ -45,14 +47,13 @@ export default function ErrandPreference({role, userId}: ErrandSelectionProps) {
     localStorage.setItem("errand_preferences",
       JSON.stringify(userPreferences)
     )
-    setTimeout(() => {
-      if (role === "tasker") {
-        router.push(`/dashboard`);
-      } else {
-        router.push(`/dashboard/`);
-      }
-      }, 1000)
 
+    setShowSuccess(true)
+
+    setTimeout(() => {
+      setShowSuccess(false)
+      router.push("/tasker/dashboard")
+    }, 5000)
       } catch(error) {
         console.error("Error saving preferences:", error)
       } finally {
@@ -62,6 +63,7 @@ export default function ErrandPreference({role, userId}: ErrandSelectionProps) {
   }
   return (
     <div className="h-screen flex flex-col md:flex-row bg-[#424BE0] overflow-hidden">
+      <SuccessPopup show={showSuccess} />
       {/* Left Section */}
       <div className="flex-1 bg-white rounded-tr-[70px] rounded-br-[70px] px-8 md:px-12 py-8 flex flex-col">
         {/* Back Navigation */}

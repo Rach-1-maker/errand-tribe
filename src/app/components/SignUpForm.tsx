@@ -127,23 +127,29 @@ export default function SignupForm({ role }: SignupFormProps) {
       })
 
       const data = await response.json()
-
-      if (!response.ok) {
-        if (data.errors) {
-          setErrors((prev) => ({
-            ...prev,
-            email: data.errors.email || "",
-            phone: data.errors.phone || "",
-          }))
-        } else {
-          setGeneralError(data.message || "Signup failed. Please try again.")
-        }
-        return
+    if (!response.ok) {
+      // Handle email already exists error
+      if (data.error?.includes("email") || data.message?.toLowerCase().includes("email")) {
+        setGeneralError("Email already exists. Please log in or use a different email.");
+      } 
+      else if (data.errors) {
+        setErrors((prev) => ({
+          ...prev,
+          email: data.errors.email || "",
+          phone: data.errors.phone || "",
+        }))
+      } else {
+        setGeneralError(data.message || data.error || "Signup failed. Please try again.")
       }
+      return
+    }
       
       const userId = data.user_id
-      router.push(`/signup/${role}/${userId}/create-password?email=${encodeURIComponent(formValues.email)}`)
-    } catch (err) {
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("signup_email", formValues.email)
+      }
+      router.push(`/signup/${role}/${userId}/create-password`)
+    } catch (err: any) {
       console.error(err);
       setGeneralError("Unable to connect. Please try again.")
     } finally {

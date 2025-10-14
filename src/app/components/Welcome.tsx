@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useRouter} from "next/navigation";
 import { MdOutlineArrowBackIos } from "react-icons/md";
 import { FaLock, FaRegStar } from "react-icons/fa";
@@ -8,6 +8,7 @@ import { HiOutlineCurrencyDollar } from "react-icons/hi";
 import { IoIosCheckmarkCircleOutline } from "react-icons/io";
 import { LuShield } from "react-icons/lu";
 import Image from "next/image";
+import SuccessPopup from "./SuccessPopUp";
 
 interface WelcomeAndSecurityCheckProps {
   role: "tasker" | "runner"
@@ -18,6 +19,7 @@ interface WelcomeAndSecurityCheckProps {
 export default function WelcomePage({role, userId}: WelcomeAndSecurityCheckProps) {
   const router = useRouter();
   const isTasker = role === "tasker";
+  const [showSuccess, setShowSuccess] = useState(false)
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -71,20 +73,25 @@ export default function WelcomePage({role, userId}: WelcomeAndSecurityCheckProps
         })
       })
       
+      
       if (isTasker) {
         router.push(`/signup/${role}/${userId}/errand-selection`)
       } else {
-        router.push(`/dashboard`)
+        setShowSuccess(true)
+        setTimeout(() => {
+          setShowSuccess(false)
+          router.push(`/dashboard`)
+        }, 5000)
       }
     } catch (error) {
       console.error("Failed to update signup step:", error)
-    }
+    } 
   }
 
   return (
     <div className="h-screen flex flex-col md:flex-row bg-[#424BE0]">
+      <SuccessPopup show={showSuccess} />
       <div className="w-full bg-white md:w-1/2 flex flex-col justify-center shadow-lg rounded-tr-[60px] rounded-br-[60px] px-6 sm:px-10 lg:px-16 sm:py-19">
-       
         <button
           onClick={() => router.back()}
           className="flex items-center text-gray-600 hover:text-gray-800 mb-8 ml-16"

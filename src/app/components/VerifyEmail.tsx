@@ -14,9 +14,7 @@ interface verifyEmailProps {
 
 export default function VerifyEmailPage({ role, userId }: verifyEmailProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const initialEmail = searchParams.get("email") || "";
-  const [email] = useState(initialEmail)
+  const [email, setEmail] = useState("")
   const [otp, setOtp] = useState<string[]>(["", "", "", "", "", ""]); // 6 digits
   const [timer, setTimer] = useState(0)
   const [error, setError] = useState("");
@@ -29,11 +27,12 @@ export default function VerifyEmailPage({ role, userId }: verifyEmailProps) {
   // Join OTP array into string
   const otpCode = otp.join("");
 
- useEffect(() => {
-  if (!email) {
-    setError("Email not found. Please restart the signup process.")
-  }
- }, [email])
+  useEffect(() => {
+    const storedEmail = sessionStorage.getItem("signup_email");
+    if (storedEmail) {
+      setEmail(storedEmail);
+    }
+  }, [])
 
 
   useEffect(() => {
@@ -47,34 +46,58 @@ export default function VerifyEmailPage({ role, userId }: verifyEmailProps) {
     inputRefs.current[0]?.focus()
   }, [])
 
-  const handleChange = (index: number, value: string) => {
-    if (/^\d?$/.test(value)) {
-      const newOtp = [...otp];
-      newOtp[index] = value;
-      setOtp(newOtp);
+    const handleChange = (index: number, value: string) => {
+  // Get only the last character if multiple chars are entered
+  const numericValue = value.replace(/[^0-9]/g, '').slice(-1);
+  
+  if (numericValue || value === '') {
+    const newOtp = [...otp];
+    newOtp[index] = numericValue;
+    setOtp(newOtp);
 
-      if (value && index < otp.length - 1) {
+    // Auto-focus next input
+    if (numericValue && index < otp.length - 1) {
+      setTimeout(() => {
         inputRefs.current[index + 1]?.focus();
-      }else if (!value && index > 0) {
-        inputRefs.current[index - 1]?.focus();
-      }
-      
+      }, 0);
     }
-  };
+  }
+};
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Backspace" && !otp[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    }
-    
-    if (e.key === "ArrowLeft" && index > 0) {
-      inputRefs.current[index - 1]?.focus()
-    }
+  if (e.key === "Backspace") {
+    e.preventDefault();
+    const newOtp = [...otp];
 
-    if (e.key === "ArrowRight" && index < otp.length - 1) {
-      inputRefs.current[index + 1]?.focus()
+    if (otp[index]) {
+      // Clear current box only
+      newOtp[index] = "";
+      setOtp(newOtp);
+    } else if (index > 0) {
+      // Move focus to previous and clear it, if current box is empty
+      newOtp[index - 1] = "";
+      setOtp(newOtp);
+      setTimeout(() => {
+        inputRefs.current[index - 1]?.focus();
+      }, 0);
     }
-  };
+  }
+
+  if (e.key === "ArrowLeft" && index > 0) {
+    e.preventDefault();
+    setTimeout(() => {
+      inputRefs.current[index - 1]?.focus();
+    }, 0);
+  }
+
+  if (e.key === "ArrowRight" && index < otp.length - 1) {
+    e.preventDefault();
+    setTimeout(() => {
+      inputRefs.current[index + 1]?.focus();
+    }, 0);
+  }
+};
+
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -86,7 +109,8 @@ export default function VerifyEmailPage({ role, userId }: verifyEmailProps) {
     try {
      const data = await verifyEmail(email, otpCode);
       if (data.success) {
-      router.push(`/signup/${role}/${userId}/verify-identity/?email=${encodeURIComponent(email)}`)
+        sessionStorage.removeItem("signup_email")
+      router.push(`/signup/${role}/${userId}/verify-identity`)
       } else {
         setError(data.error || data.message || "Verification failed. Try again");
       }
@@ -117,7 +141,7 @@ export default function VerifyEmailPage({ role, userId }: verifyEmailProps) {
       setResendMessage(data.message || "A new OTP code has been sent to your email.")
       setTimer(30)
 
-      setTimeout(() => setResendMessage(""), 20000)
+      setTimeout(() => setResendMessage(""), 2000)
     } else {
       setError(data.message || "Could not resend code.");
       setTimer(0)
@@ -146,7 +170,7 @@ export default function VerifyEmailPage({ role, userId }: verifyEmailProps) {
             Verify your Email
           </h1>
           <p className="mt-2 text-gray-600 mb-10">
-            We sent a 6-digit code to <span className="font-medium">{email}</span>
+            We sent a 6-digit code to <strong>{email}</strong>
           </p>
 
           {/* Form */}
@@ -160,21 +184,31 @@ export default function VerifyEmailPage({ role, userId }: verifyEmailProps) {
                     inputRefs.current[index] = el
                     if (index === 0 && el) el.focus()
                 }}
-                  type="text"
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   maxLength={1}
                   value={digit}
                   onChange={(e) => handleChange(index, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(index, e)}
                   onPaste={(e) => {
                     e.preventDefault();
-                    const pasted = e.clipboardData.getData("text").slice(0, otp.length);
-                    if (/^\d+$/.test(pasted)) {
-                      const newOtp = pasted.split("");
-                      setOtp(newOtp);
-                      newOtp.forEach((digit, i) => {
-                        if (inputRefs.current[i]) inputRefs.current[i]!.value = digit;
+                    const pasted = e.clipboardData.getData("text").replace(/[^0-9]/g, '').slice(0, otp.length);
+                    
+                    if (pasted) {
+                      const newOtp = [...otp];
+                      pasted.split('').forEach((char, i) => {
+                        if (i < otp.length) {
+                          newOtp[i] = char;
+                        }
                       });
-                      inputRefs.current[Math.min(pasted.length, otp.length - 1)]?.focus();
+                      setOtp(newOtp);
+                      
+                      // Focus the next empty input or the last one
+                      const nextIndex = Math.min(pasted.length, otp.length - 1);
+                      setTimeout(() => {
+                        inputRefs.current[nextIndex]?.focus();
+                      }, 0);
                     }
                   }}
                   className={`w-16 h-16 text-center border rounded-lg text-lg focus:outline-none transition-colors duration-500 ${digit
@@ -190,7 +224,7 @@ export default function VerifyEmailPage({ role, userId }: verifyEmailProps) {
 
             {/* Resend */}
             <p className="text-sm text-gray-600 text-center">
-              Didn&aos;t receive the code?{" "}
+              Didn&apos;t receive the code?{" "}
               <button
                 type="button"
                 onClick={handleResend}
