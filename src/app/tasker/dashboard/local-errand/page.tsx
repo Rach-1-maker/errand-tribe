@@ -33,7 +33,7 @@ interface ErrandFormData {
   imagePreview?: string | null;
 }
 
-export default function ErrandFormPage({userId}: {userId: string}) {
+export default function ErrandFormPage() {
   const router = useRouter();
   const {userData} = useUser()
   const {saveTaskToStorage} = useTaskStorage()
