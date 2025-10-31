@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { MdOutlineArrowBackIos, MdOutlineClear } from "react-icons/md";
 import { LiaRedoAltSolid } from "react-icons/lia";
+import { useUser } from "../context/UserContext";
+import { uploadProfilePicture } from "../services/profileService";
 
 interface ProfileUploadProps{
   role: "tasker" | "runner"
@@ -15,6 +17,7 @@ interface ProfileUploadProps{
 
 export default function ProfileUploadPage({role, userId}: ProfileUploadProps) {
   const router = useRouter();
+  const {updateProfilePhoto} = useUser()
 
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -37,7 +40,7 @@ export default function ProfileUploadPage({role, userId}: ProfileUploadProps) {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
-  };
+  };       
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,24 +54,32 @@ export default function ProfileUploadPage({role, userId}: ProfileUploadProps) {
     setError("");
 
     try {
+     
+     const data = await uploadProfilePicture(userId, file)
+     if (data.success) {
       
-     const formData = new FormData()
-     formData.append("profile_picture", file)
-     formData.append("role", role)
-     formData.append("userId", userId)
+      const photoUrl = data.profile_picture_url || "/default-avatar.png";
+      updateProfilePhoto(photoUrl)
 
-     const res = await fetch(`${API_URL}/users/${userId}/upload-picture/`, {
-      method: "POST",
-      body: formData
-     })
 
-     if(!res.ok) {
-      const errorData = await res.json()
-      throw new Error(errorData.message || "Upload failed")
-     }
-
+     if (typeof window !== "undefined") {
+      const storedUser = localStorage.getItem("userData");
+      if (storedUser) {
+        const userData = JSON.parse(storedUser);
+        const updatedUser = {
+          ...userData,
+          profilePhoto: photoUrl 
+        };
+        localStorage.setItem("userData", JSON.stringify(updatedUser));
+      }
+    }
       // After successful upload
-      router.push(`/signup/${role}/${userId}/location-access/`);
+      setTimeout(() => {
+        router.push(`/signup/${role}/${userId}/location-access/`);
+      }, 300)
+    } else {
+      throw new Error(data.message || "Upload failed");
+    }
     } catch (err: any) {
       setError(err.message || "Upload failed. Please try again.");
     } finally {
@@ -120,7 +131,7 @@ export default function ProfileUploadPage({role, userId}: ProfileUploadProps) {
                       <p className="text-gray-500 text-center mb-1 text-xs">
                         Upload Profile
                       </p>
-                      <span className="text-[#424BE0] cursor-pointer underline text-xs">
+                      <span className="text-[#424BE0] cursor-pointer text-xs">
                         Click to Browse
                       </span>
                     </div>

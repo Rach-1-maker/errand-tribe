@@ -12,10 +12,14 @@ import { MdOutlineArrowBackIos } from "react-icons/md";
 
 interface PasswordPageProps {
   
-    role: "tasker" | "runner"
-    userId: string
-  }
+  role: "tasker" | "runner"
+  userId: string
+}
 
+interface AuthTokens {
+  access: string;
+  refresh: string;
+}
 
 export default function CreatePassword({ role, userId }: PasswordPageProps) {
 
@@ -25,7 +29,6 @@ export default function CreatePassword({ role, userId }: PasswordPageProps) {
     confirmPassword: "",
     email: ""
   });
-  const searchParams = useSearchParams()
   const [email, setEmail] = useState("")
   const [errors, setErrors] = useState("")
   const [generalError, setGeneralError] = useState("")
@@ -46,6 +49,18 @@ export default function CreatePassword({ role, userId }: PasswordPageProps) {
     }
     
     }, [userId, router])
+
+    // Store tokens in secure storage
+  const storeTokens = (tokens: AuthTokens) => {
+    // Store access token in sessionStorage (cleared when browser closes)
+    localStorage.setItem("access_token", tokens.access);
+    sessionStorage.setItem("access_token", tokens.access);
+    
+    // Store refresh token in localStorage (persists across sessions)
+    localStorage.setItem("refresh_token", tokens.refresh);
+    // Also store in sessionStorage for immediate use
+    sessionStorage.setItem("refresh_token", tokens.refresh);
+  }
 
     // Password validator
   const validatePassword = (password: string): boolean => {
@@ -73,7 +88,6 @@ export default function CreatePassword({ role, userId }: PasswordPageProps) {
         setErrors("")
       setIsFormValid(true);
     } else {
-
         setErrors("")
       setIsFormValid(false);
     }
@@ -126,7 +140,16 @@ export default function CreatePassword({ role, userId }: PasswordPageProps) {
         return
     }
 
+    if (data.tokens) {
+      storeTokens(data.tokens);
+    }
+    
+
+    localStorage.setItem("isNewUser", "true")
     sessionStorage.setItem("signup_email", email)
+
+    sessionStorage.setItem("current_user", JSON.stringify(data.user));
+
     router.push(`/signup/${role}/${userId}/verify-email`)
 
     } catch (error: any) {

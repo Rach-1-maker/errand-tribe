@@ -16,6 +16,7 @@ export default function ErrandPreference({role, userId}: ErrandSelectionProps) {
   const [loading, setLoading] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false);
 
+
   const errands = [
     { id: "local", label: "Local Errands", img: "/local-errands.png" },
     { id: "supermarket", label: "Supermarket Runs", img: "/supermarkets.png" },
@@ -42,25 +43,42 @@ export default function ErrandPreference({role, userId}: ErrandSelectionProps) {
       user_id: userId,
       role,
       preferences: selected,
+      saved_at: new Date().toISOString()
     }
 
     localStorage.setItem("errand_preferences",
       JSON.stringify(userPreferences)
     )
 
-    setShowSuccess(true)
+    const existingUserData = localStorage.getItem("userData");
+      if (existingUserData) {
+        const userData = JSON.parse(existingUserData);
+        const updatedUserData = {
+          ...userData,
+          preferences: selected,
+          onboarding_completed: true
+        };
 
-    setTimeout(() => {
-      setShowSuccess(false)
-      router.push("/tasker/dashboard")
-    }, 5000)
+        localStorage.setItem("userData", JSON.stringify(updatedUserData));
+      }
+      console.log("Preferences saved to localStorage:", userPreferences);
+      localStorage.setItem("isNewUser", "true");
+
+      setShowSuccess(true)
+
+      setTimeout(() => {
+        setShowSuccess(false)
+        router.push(`/tasker/dashboard`)
+       }, 3000)
       } catch(error) {
         console.error("Error saving preferences:", error)
       } finally {
         setLoading(false)
       }
 
-  }
+    }
+
+
   return (
     <div className="h-screen flex flex-col md:flex-row bg-[#424BE0] overflow-hidden">
       <SuccessPopup show={showSuccess} />
@@ -184,7 +202,7 @@ export default function ErrandPreference({role, userId}: ErrandSelectionProps) {
                 d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
               ></path>
             </svg>
-            <span>Loading...</span>
+            <span>Completing Setup...</span>
           </>
         ) : (
           "Continue"

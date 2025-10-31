@@ -8,6 +8,8 @@ import { FaApple } from "react-icons/fa";
 import { RxEyeClosed } from "react-icons/rx";
 import { AiOutlineEye } from "react-icons/ai";
 import { useRoleModal } from "../context/RoleModalContext";
+import { useUser } from "../context/UserContext";
+import { MdOutlineArrowBackIos } from "react-icons/md";
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
@@ -21,6 +23,7 @@ export default function LoginForm() {
   const { openModal } = useRoleModal();
 
   const isFormValid = email.trim() !== "" && password.trim() !== "";
+  const {login} = useUser()
 
   // Load remembered email if available
   useEffect(() => {
@@ -52,7 +55,7 @@ export default function LoginForm() {
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
       if (!API_URL) throw new Error("API URL not set in .env");
 
-      const res = await fetch(`${API_URL}/api/auth/login/`, {
+      const res = await fetch(`${API_URL}/auth/login/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -61,32 +64,25 @@ export default function LoginForm() {
       const data = await res.json();
 
       if (!res.ok) {
-        const msg = data?.message?.toLowerCase() || "";
-        if (msg.includes("email")) {
-          setError("Email does not match our records.");
-        } else if (msg.includes("password")) {
-          setError("Invalid password.");
+        if (data.error) {
+          setError(data.error);
+        } else if (data.errors) {
+          // Format: {"errors": {"email": ["This field is required."]}}
+          const errorMsg = Object.values(data.errors).flat().join(', ');
+          setError(errorMsg);
+        } else if (data.detail) {
+          // JWT or other DRF errors
+          setError(data.detail);
         } else {
-          setError(data?.message || "Login failed. Please try again.");
+          setError(data.message || "Login failed. Please try again.");
         }
         return;
       }
 
-      // Expected backend response:
-      // {
-      //   "token": "jwt_or_session_token",
-      //   "user": { "id": 1, "email": "x@y.com", "role": "runner" }
-      // }
+    if (data.success && data.tokens && data.user) {
+      const { tokens, user } = data;
 
-      const { token, user } = data;
-
-      if (!token || !user) {
-        throw new Error("Incomplete response from server");
-      }
-
-      // Save user session
-      localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(user));
+      login(user, tokens)
 
       // Remember email if checked
       if (rememberMe) {
@@ -94,15 +90,22 @@ export default function LoginForm() {
       } else {
         localStorage.removeItem("rememberedEmail");
       }
+      localStorage.removeItem("signupData");
 
       // Redirect user based on role
-      if (user.role === "tasker") {
-        router.push("/tasker/dashboard");
-      } else if (user.role === "runner") {
-        router.push("/runner/dashboard");
-      } else {
-        router.push("/"); // fallback
-      }
+      setTimeout(() => {
+        if (user.role === "tasker") {
+          router.push(`/tasker/dashboard/${user.id}`);
+        } else if (user.role === "runner") {
+          router.push(`/runner/dashboard/${user.id}`)
+        } else {
+          router.push("/"); // fallback
+        }
+      }, 300)
+
+    } else {
+      throw new Error("Invalid response format from server")
+    }
     } catch (err) {
       console.error("Login failed:", err);
       setError("Something went wrong. Please try again.");
@@ -116,6 +119,13 @@ export default function LoginForm() {
       {/* Left Section (Form) */}
       <div className="flex-1 flex flex-col justify-center items-center rounded-tr-[60px] rounded-br-[60px] bg-white px-8 md:px-12 overflow-hidden">
         <div className="w-full max-w-md">
+          {/* Back Button */}
+          <button
+            onClick={() => router.back()}
+            className="flex items-center text-lg text-gray-600 mb-6"
+          >
+            <MdOutlineArrowBackIos className="mr-2 text-lg" /> Back
+          </button>
           {/* Heading */}
           <h1 className="text-2xl md:text-3xl font-bold mb-8 text-[#252B42]">
             Welcome back {lastName && `${lastName}`} 👋

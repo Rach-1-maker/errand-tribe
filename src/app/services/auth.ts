@@ -1,6 +1,8 @@
 
 // small typed helper for auth-related network calls
 
+import { TokenManager } from "../utils/tokenUtils";
+
 type VerifyResponse = {
   success: boolean;
   message?: string;
@@ -53,11 +55,18 @@ export async function verifyEmail(
 
   const url = `${BASE}/auth/email/verify/`;
 
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  }
+
+  const token = TokenManager.getAccessToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const res = await fetch(url, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers,
     body: JSON.stringify({ email, otp}),
   });
 
@@ -75,9 +84,19 @@ export async function resendVerificationCode(
 
   const url = `${BASE}/auth/email/send-otp/`;
 
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+
+  // ✅ Add authorization header if token exists
+  const token = TokenManager.getAccessToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({ email }),
   });
 
@@ -111,8 +130,16 @@ export async function verifyIdentity(
   formData.append("document_type",documentType);
   formData.append("document_file",documentFile);
 
+  const headers: HeadersInit = {};
+
+  // ✅ Add authorization header if token exists
+  const token = TokenManager.getAccessToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
   const res = await fetch(url, {
     method: "POST",
+    headers,
     body: formData,
   });
 

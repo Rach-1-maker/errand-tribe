@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter} from "next/navigation";
 import { MdOutlineArrowBackIos } from "react-icons/md";
 import { FaLock, FaRegStar } from "react-icons/fa";
@@ -21,7 +21,6 @@ export default function WelcomePage({role, userId}: WelcomeAndSecurityCheckProps
   const isTasker = role === "tasker";
   const [showSuccess, setShowSuccess] = useState(false)
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL
 
   // Features per role
   const taskerFeatures = [
@@ -64,14 +63,18 @@ export default function WelcomePage({role, userId}: WelcomeAndSecurityCheckProps
 
   const handleSubmit = async () => {
     try {
-      await fetch(`${API_URL}/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json"},
-        body: JSON.stringify({
-          user_id: userId,
-          role
-        })
-      })
+      const existingUserData = localStorage.getItem("user");
+      if (existingUserData) {
+        const userData = JSON.parse(existingUserData);
+        const updatedUserData = {
+          ...userData,
+          onboarding_completed: true,
+          welcome_shown: true
+        };
+        localStorage.setItem("user", JSON.stringify(updatedUserData));
+      }
+
+      console.log("Welcome completed for runner:", userId)
       
       
       if (isTasker) {
@@ -80,8 +83,8 @@ export default function WelcomePage({role, userId}: WelcomeAndSecurityCheckProps
         setShowSuccess(true)
         setTimeout(() => {
           setShowSuccess(false)
-          router.push(`/dashboard`)
-        }, 5000)
+          router.push(`/dashboard${userId}`)
+        }, 3000)
       }
     } catch (error) {
       console.error("Failed to update signup step:", error)
@@ -98,6 +101,7 @@ export default function WelcomePage({role, userId}: WelcomeAndSecurityCheckProps
         >
           <MdOutlineArrowBackIos className="mr-2" /> Back
         </button>
+
 
         {/* Heading */}
         <h1 className="text-3xl font-semibold text-gray-900 mb-2 ml-16">

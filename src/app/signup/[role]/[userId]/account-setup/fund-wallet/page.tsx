@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { MdClear, MdOutlineArrowBackIos } from "react-icons/md";
-import Image from "next/image";
 
 export default function FundWalletPage() {
   const router = useRouter();
@@ -179,13 +178,6 @@ export default function FundWalletPage() {
             {successMsg}
           </div>
         )}
-      </div>
-
-      <div className="hidden md:flex flex-1 items-center justify-center text-center px-8">
-        <div>
-          <h2 className="text-white text-2xl md:text-3xl font-semibold mb-6 max-w-lg leading-tight">Whatever your errand is, Errand Tribe's got you covered!</h2>
-          <Image src="/wallet.svg" alt="wallet" width={400} height={400} className="mx-auto" />
-        </div>
       </div>
 
       {/* Modal */}

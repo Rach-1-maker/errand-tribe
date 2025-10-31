@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { verifyEmail, resendVerificationCode } from "../services/auth";
 import { MdOutlineArrowBackIos } from "react-icons/md";
+import { TokenManager } from "../utils/tokenUtils";
 
 
 interface verifyEmailProps {
@@ -109,7 +110,6 @@ export default function VerifyEmailPage({ role, userId }: verifyEmailProps) {
     try {
      const data = await verifyEmail(email, otpCode);
       if (data.success) {
-        sessionStorage.removeItem("signup_email")
       router.push(`/signup/${role}/${userId}/verify-identity`)
       } else {
         setError(data.error || data.message || "Verification failed. Try again");

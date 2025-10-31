@@ -5,6 +5,8 @@ import Image from "next/image";
 import { FcGoogle } from "react-icons/fc";
 import { FaApple } from "react-icons/fa";
 import { useRouter } from "next/navigation";
+import { useUser } from "../context/UserContext";
+import { MdOutlineArrowBackIos } from "react-icons/md";
 
 type SignupFormProps = {
   role: "tasker" | "runner";
@@ -28,6 +30,8 @@ export default function SignupForm({ role }: SignupFormProps) {
   const [generalError, setGeneralError] = useState<string>("")
   const [isFormValid, setIsFormValid] = useState<boolean>(false)
   const router = useRouter()
+  const {setUserData} = useUser()
+  
 
 
   // Track form values
@@ -103,6 +107,8 @@ export default function SignupForm({ role }: SignupFormProps) {
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL
 
+  
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!isFormValid) return; // prevent submit if invalid
@@ -128,6 +134,11 @@ export default function SignupForm({ role }: SignupFormProps) {
 
       const data = await response.json()
     if (!response.ok) {
+      console.error("Signup failed:", {
+        status: response.status,
+        data: data,
+        errors: data.errors
+      });
       // Handle email already exists error
       if (data.error?.includes("email") || data.message?.toLowerCase().includes("email")) {
         setGeneralError("Email already exists. Please log in or use a different email.");
@@ -143,9 +154,29 @@ export default function SignupForm({ role }: SignupFormProps) {
       }
       return
     }
+
+      setUserData({
+        id: data.user_id,
+        firstName: formValues.firstName,
+        lastName: formValues.lastName,
+        email: formValues.email,
+        phone: formValues.phone,
+        role,
+      });
+
       
       const userId = data.user_id
       if (typeof window !== "undefined") {
+        localStorage.setItem(
+          "userData",
+          JSON.stringify({
+            firstName: formValues.firstName,
+            lastName: formValues.lastName,
+            email: formValues.email,
+            phone: formValues.phone,
+            role,
+          })
+        )
         sessionStorage.setItem("signup_email", formValues.email)
       }
       router.push(`/signup/${role}/${userId}/create-password`)
@@ -162,6 +193,12 @@ export default function SignupForm({ role }: SignupFormProps) {
       {/* Left Section (Form) */}
       <div className="flex-1 flex flex-col justify-center items-center rounded-tr-[60px] rounded-br-[60px] bg-white px-8 md:px-16 overflow-hidden">
         <div className="w-full max-w-md ">
+          <button
+            onClick={() => router.back()}
+            className="flex items-center text-lg text-gray-600 mb-6"
+          >
+            <MdOutlineArrowBackIos className="mr-2 text-lg" /> Back
+          </button>
           {/* Heading */}
           <h1 className="text-2xl md:text-3xl font-bold mb-1 text-[#252B42]">
             Signup as a {role}

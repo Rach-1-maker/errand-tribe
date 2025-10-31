@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { verifyIdentity } from "../services/auth"
@@ -17,8 +17,7 @@ interface VerifyIdentityProps{
 
 export default function VerifyIdentityPage({role, userId}: VerifyIdentityProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const email = searchParams.get("email") || ""
+  const [email, setEmail] = useState("")
  
 
   const [country, setCountry] = useState("Nigeria")
@@ -39,6 +38,13 @@ export default function VerifyIdentityPage({role, userId}: VerifyIdentityProps) 
     Kenya: ["National ID", "Driver's License", "Passport", "Alien Card"],
     Togo: ["National ID", "Driver's License", "Passport", "Carte Nationale d'Identité"],
   };
+
+  useEffect(() => {
+      const storedEmail = sessionStorage.getItem("signup_email");
+      if (storedEmail) {
+        setEmail(storedEmail);
+      }
+    }, [])
 
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -70,7 +76,8 @@ export default function VerifyIdentityPage({role, userId}: VerifyIdentityProps) 
       const res = await verifyIdentity(email, role, userId, country, documentType, file );
       if (res.success) {
         setSuccess(res.message || "Identity verified successfully!");
-        router.push(`/signup/${role}/${userId}/upload-profile?email=${encodeURIComponent(email)}`);
+        sessionStorage.removeItem("signup_email")
+        router.push(`/signup/${role}/${userId}/upload-profile`);
       } else {
         setError(res.message || "Identity verification failed.");
       }
