@@ -72,7 +72,7 @@ export default function WalletPage() {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar />
+      <Sidebar userType="tasker" />
       <div className="flex-1 flex flex-col">
         <TopBar />
 
