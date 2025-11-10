@@ -1,40 +1,50 @@
+'use client'
 import Image from 'next/image';
 import React, { useState } from 'react'
 import { BiHomeCircle } from 'react-icons/bi';
 import { FiMenu, FiPower, FiSearch, FiX } from 'react-icons/fi';
 import { IoWalletOutline } from 'react-icons/io5';
-import { TbMessage2, TbUsers } from 'react-icons/tb';
+import { TbMessage2, TbUsers, TbBriefcase} from 'react-icons/tb';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { TokenManager } from '../utils/tokenUtils';
 
 interface SideBarProps {
+  userType: 'tasker' | 'runner';
   onClose?: () => void;
 }
 
-export default function SideBar({ onClose }: SideBarProps) {
+export default function SideBar({userType, onClose }: SideBarProps) {
     const pathname = usePathname();
     const router = useRouter()
     const [isOpen, setIsOpen] = useState(false);
 
-    const menu = [
-        { name: "Home", href: "/dashboard/tasker", icon: BiHomeCircle },
-        { name: "My task", icon: FiSearch },
-        { name: "Messages", icon: TbMessage2 },
-        { name: "Wallet", icon: IoWalletOutline },
-        { name: "Profile & Settings", icon: TbUsers },
-      ];
+    const taskerMenu = [
+      { name: 'Home', href: '/dashboard/tasker', icon: BiHomeCircle },
+      { name: 'My Task', href: '/dashboard/tasker/my-tasks', icon: FiSearch },
+      { name: 'Messages', href: '/dashboard/tasker/messages', icon: TbMessage2 },
+      { name: 'Wallet', href: '/dashboard/tasker/wallet', icon: IoWalletOutline },
+      { name: 'Profile & Settings', href: '/dashboard/tasker/profile', icon: TbUsers },
+    ];
+
+    const runnerMenu = [
+      { name: 'Home', href: '/dashboard/runner', icon: BiHomeCircle },
+      { name: 'My Offers', href: '/dashboard/runner/my-offers', icon: FiSearch },
+      { name: 'Job Workspace', href: '/dashboard/runner/workspace', icon: TbBriefcase },
+      { name: 'Messages', href: '/dashboard/runner/messages', icon: TbMessage2 },
+      { name: 'Wallet', href: '/dashboard/runner/wallet', icon: IoWalletOutline },
+      { name: 'Profile & Settings', href: '/dashboard/runner/profile', icon: TbUsers },
+    ];
+
+    const menu = userType === 'tasker' ? taskerMenu : runnerMenu;
 
     const handleLogout = () => {
       TokenManager.clearTokens()
       localStorage.removeItem("userData")
       localStorage.removeItem("user")
       sessionStorage.clear()
-      router.push("/login")
-      
-      if (onClose) {
-        onClose()
-      }
+      router.push("/login") 
+      if (onClose) onClose()
     }
 
   return (
@@ -106,7 +116,7 @@ export default function SideBar({ onClose }: SideBarProps) {
       
         {/* Logout */}
         <button onClick={handleLogout} className="flex flex-col mr-16 items-center text-red-500 hover:text-red-600 transition mb-4">
-          <div className=" p-3 md:ml-16 rounded-xl hover:bg-red-50 mt-8 md:mt-22">
+          <div className=" p-3 md:ml-16 rounded-xl hover:bg-red-50 mt-8 md:mt-8">
             <FiPower className="text-2xl" />
           </div>
           <span className="text-sm ml-2 mb-22 md:mt-0 md:ml-16">Log out</span>
