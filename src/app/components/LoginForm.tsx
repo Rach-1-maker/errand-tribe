@@ -95,9 +95,9 @@ export default function LoginForm() {
       // Redirect user based on role
       setTimeout(() => {
         if (user.role === "tasker") {
-          router.push(`/tasker/dashboard/${user.id}`);
+          router.push(`/tasker/dashboard/[id]/${user.id}`);
         } else if (user.role === "runner") {
-          router.push(`/runner/dashboard/${user.id}`)
+          router.push(`/runner/dashboard/[id]/${user.id}`)
         } else {
           router.push("/"); // fallback
         }

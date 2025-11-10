@@ -83,7 +83,7 @@ export default function WelcomePage({role, userId}: WelcomeAndSecurityCheckProps
         setShowSuccess(true)
         setTimeout(() => {
           setShowSuccess(false)
-          router.push(`/dashboard${userId}`)
+          router.push(`/runner/dashboard/[id]${userId}`)
         }, 3000)
       }
     } catch (error) {

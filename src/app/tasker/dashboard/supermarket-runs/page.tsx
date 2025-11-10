@@ -403,7 +403,7 @@ export default function SupermarketRunsPage() {
     <div className="min-h-screen flex bg-[#F2F2FD] overflow-hidden">
       {/* Sidebar (desktop) */}
       <div className="hidden md:flex h-screen">
-        <SideBar />
+        <SideBar userType="tasker" />
       </div>
 
       {/* Mobile Sidebar Overlay */}
@@ -417,7 +417,7 @@ export default function SupermarketRunsPage() {
 
           {/* Sliding sidebar */}
           <div className="fixed top-0 left-0 h-full w-64 bg-white shadow-lg z-50 md:hidden">
-            <SideBar onClose={() => setIsSidebarOpen(false)} />
+            <SideBar userType="tasker" onClose={() => setIsSidebarOpen(false)} />
           </div>
         </>
       )}

@@ -297,7 +297,7 @@ export default function ErrandFormPage() {
     <div className="min-h-screen flex bg-[#F2F2FD] overflow-hidden">
       {/* Sidebar (desktop) */}
       <div className="hidden md:flex h-screen">
-        <SideBar />
+        <SideBar userType="tasker" />
       </div>
 
       {/* Sidebar Overlay (mobile) */}
@@ -315,7 +315,7 @@ export default function ErrandFormPage() {
               isSidebarOpen ? "translate-x-0" : "-translate-x-full"
             }`}
           >
-            <SideBar onClose={() => setIsSidebarOpen(false)}/>
+            <SideBar userType="tasker" onClose={() => setIsSidebarOpen(false)}/>
           </div>
         </>
       )}

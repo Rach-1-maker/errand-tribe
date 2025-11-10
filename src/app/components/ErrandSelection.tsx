@@ -68,7 +68,7 @@ export default function ErrandPreference({role, userId}: ErrandSelectionProps) {
 
       setTimeout(() => {
         setShowSuccess(false)
-        router.push(`/tasker/dashboard`)
+        router.push(`/tasker/dashboard/[id]`)
        }, 3000)
       } catch(error) {
         console.error("Error saving preferences:", error)
@@ -102,7 +102,7 @@ export default function ErrandPreference({role, userId}: ErrandSelectionProps) {
         </p>
 
         {/* Errand Cards */}
-        <div className="flex flex-col items-center gap-6 flex-grow">
+        <div className="flex flex-col items-center gap-6 grow">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-6 w-full justify-items-center">
             {errands.slice(0, 3).map((errand) => (
               <label

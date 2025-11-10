@@ -54,13 +54,25 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
 
+        console.log("Initializing auth:", { savedUserData, accessToken, refreshToken })
+
+        if (!savedUserData || !accessToken) {
+          setIsLoading(false);
+          return;
+        }
+
         const parsedData: UserData = JSON.parse(savedUserData);
 
         // If token expired, try refresh
         if (isTokenExpired(accessToken) && refreshToken) {
+          console.log("Token expired, attempting refresh...");
           const success = await refreshTokenAndLoadUser(refreshToken);
-          if (!success) clearAuthData();
+          if (!success){
+            console.log("Token refresh failed, clearing auth data")
+            clearAuthData();
+          }
         } else {
+          console.log("Token valid, setting user data");
           setUserDataState(parsedData);
         }
       } catch (err) {
@@ -88,14 +100,21 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const refreshTokenAndLoadUser = async (refreshToken: string): Promise<boolean> => {
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      console.log("Refreshing token with URL:", `${API_URL}/auth/token/refresh/`)
+
       const response = await fetch(`${API_URL}/auth/token/refresh/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refresh: refreshToken }),
       });
 
-      if (!response.ok) throw new Error("Token refresh failed");
+      if (!response.ok){
+        console.error("Token refresh failed with status:", response.status)
+        throw new Error("Token refresh failed");
+      }
+
       const data = await response.json();
+      console.log("Token refresh successful")
 
       localStorage.setItem("access_token", data.access);
       sessionStorage.setItem("access_token", data.access);
@@ -103,6 +122,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       const savedUserData =
         localStorage.getItem("userData") || sessionStorage.getItem("current_user");
       if (savedUserData) {
+        console.log("Setting user data after token refresh")
         setUserDataState(JSON.parse(savedUserData));
       }
 
@@ -155,6 +175,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       profilePhoto: data.profilePhoto || data.profilePhoto || getDefaultAvatar(data.role),
     };
 
+    console.log("Setting user data:", completeData)
     setUserDataState(completeData);
     localStorage.setItem("userData", JSON.stringify(completeData));
     sessionStorage.setItem("current_user", JSON.stringify(completeData));
@@ -181,7 +202,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       profilePhoto: userData.profilePhoto || userData.profile_photo || getDefaultAvatar(userData.role),
     };
 
-
+    console.log("Login with user data:", normalizedData)
     setUserDataState(normalizedData);
 
     // Save tokens + user
@@ -194,6 +215,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = () => {
+    console.log("Logging out")
     clearAuthData();
     router.push("/login");
   };
@@ -210,6 +232,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const initializeSignupAuth = (userData: UserData, tokens: { access: string; refresh: string }) => {
+    console.log("Initializing signup auth")
     login(userData, tokens);
   };
 

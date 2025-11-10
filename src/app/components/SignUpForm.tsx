@@ -134,13 +134,13 @@ export default function SignupForm({ role }: SignupFormProps) {
 
       const data = await response.json()
     if (!response.ok) {
-      console.error("Signup failed:", {
+      console.error("Signup failed: email already exist", {
         status: response.status,
         data: data,
         errors: data.errors
       });
       // Handle email already exists error
-      if (data.error?.includes("email") || data.message?.toLowerCase().includes("email")) {
+      if (data.errors?.includes("email") || data.message?.toLowerCase().includes("email")) {
         setGeneralError("Email already exists. Please log in or use a different email.");
       } 
       else if (data.errors) {

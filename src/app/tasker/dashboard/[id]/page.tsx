@@ -23,7 +23,7 @@ export default function TaskerDashboard() {
   const {userData, isLoading: userLoading} = useUser()
   const {getLastTask} = useTaskStorage()
   const params = useParams()
-  const userId = params.id as string
+  const userId = params?.id as string
   const [amount, setAmount] = useState<number | "">("")
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [walletBalance, setWalletBalance] = useState(0);
@@ -204,16 +204,17 @@ export default function TaskerDashboard() {
 
   return (
     <div className="flex min-h-screen bg-[#F2F2FD] text-[#1E1E1E] flex-col md:flex-row overflow-hidden">
-      {showTerms && (
+      {showTerms && userId && (
         <TermsModal
           userId={userId}
+          role="tasker"
           onAgree={handleTermsAgree}
         />
       )}
       
       {/* Sidebar (desktop) */}
       <div className="hidden md:flex h-screen sticky top-0">
-        <SideBar />
+        <SideBar userType="tasker" />
       </div>
 
       {/* Mobile Sidebar Overlay */}
@@ -224,7 +225,7 @@ export default function TaskerDashboard() {
             onClick={() => setIsSidebarOpen(false)}
           ></div>
           <div className="fixed top-0 left-0 w-64 h-full bg-white shadow-lg z-50 md:hidden overflow-y-auto">
-            <SideBar onClose={() => setIsSidebarOpen(false)} />
+            <SideBar userType="tasker" onClose={() => setIsSidebarOpen(false)} />
           </div>
         </>
       )}
@@ -232,7 +233,7 @@ export default function TaskerDashboard() {
       {/* Main content */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         {/* Top Bar with mobile menu toggle */}
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           <TopBar onMenuClick={() => setIsSidebarOpen(true)} />
         </div>
 
@@ -240,7 +241,7 @@ export default function TaskerDashboard() {
         <div className="flex-1 mt-4 overflow-auto pb-6">
           {/* Wallet Overview */}
           <div className="grid grid-cols-1 md:grid-cols-2 px-4 gap-6 mx-auto w-[95%] mb-6">
-            <div className="relative bg-gradient-to-r from-[#424BE0] via-[#7277EB] to-[#AEB0F4] text-white rounded-[24px] p-6 md:p-8 flex justify-between items-center shadow-lg">
+            <div className="relative bg-linear-to-r from-[#424BE0] via-[#7277EB] to-[#AEB0F4] text-white rounded-3xl p-6 md:p-8 flex justify-between items-center shadow-lg">
               {/* Left Section */}
               <div className="flex flex-col justify-between">
                 <div className="w-12 h-12 bg-white/30 rounded-full flex items-center justify-center mb-3">

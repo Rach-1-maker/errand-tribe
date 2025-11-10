@@ -311,7 +311,7 @@ export default function VerifyItPage() {
     <div className="h-screen flex bg-[#F2F2FD] overflow-hidden">
       {/* Sidebar (desktop) */}
       <div className="hidden md:flex h-screen">
-        <SideBar />
+        <SideBar userType="tasker" />
       </div>
 
       {/* Mobile Sidebar Overlay */}
@@ -322,7 +322,7 @@ export default function VerifyItPage() {
             onClick={() => setIsSidebarOpen(false)}
           ></div>
           <div className="fixed top-0 left-0 h-screen w-64 bg-white shadow-lg z-50 md:hidden">
-            <SideBar onClose={() => setIsSidebarOpen(false)} />
+            <SideBar userType="tasker" onClose={() => setIsSidebarOpen(false)} />
           </div>
         </>
       )}
