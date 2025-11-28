@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import Image from "next/image";
 import { IoMdAnalytics } from "react-icons/io";
 import { FcAlarmClock } from "react-icons/fc";
-import { FaArrowTrendUp, FaWallet } from "react-icons/fa6";
+import { FaArrowTrendUp, FaUser, FaWallet } from "react-icons/fa6";
 import { MdClear} from "react-icons/md";
 import { motion, AnimatePresence } from "framer-motion";
 import TermsModal from "@/app/components/Terms&Condition";
@@ -17,13 +17,18 @@ import { toast } from "react-toastify";
 import TaskSummaryCard from "@/app/components/TaskSummaryCard";
 import { TokenManager } from "@/app/utils/tokenUtils";
 import { useTaskStorage } from "@/app/hooks/useTaskStorage";
+import ApplicantsReviewModal from "@/app/components/ApplicantsReviewModal";
+import { syncTaskToRunners, updateTaskStatus } from "@/app/utils/taskSync";
+import { useAuth } from "@/app/hooks/useAuth";
+import { useSharedTaskStorage } from "@/app/hooks/useSharedTaskStorage";
 
 
 export default function TaskerDashboard() {
+  const { user, isLoading } = useAuth("/login", true);
   const {userData, isLoading: userLoading} = useUser()
-  const {getLastTask} = useTaskStorage()
+  const {saveTaskToStorage, getLastTask, clearLastTask} = useTaskStorage()
   const params = useParams()
-  const userId = params?.id as string
+  const userId = userData?.id
   const [amount, setAmount] = useState<number | "">("")
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [walletBalance, setWalletBalance] = useState(0);
@@ -35,113 +40,477 @@ export default function TaskerDashboard() {
   const [showApplicantsModal, setShowApplicantsModal] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [withdrawnTask, setWithdrawnTask] = useState<any | null>(null);
   const router = useRouter();
+  
 
+  const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-  const { clearLastTask } = useTaskStorage();
+  
+  useEffect(() => {
+    const checkToken = () => {
+      // Wait for UserContext to finish loading
+      if (userLoading) {
+        console.log("🔄 User context still loading, skipping token check");
+        return;
+      }
 
-  const handleWithdrawTask = () => {
-    if (!lastTask) return;
-    setShowWithdrawConfirm(true)
-      // Temporarily store the withdrawn task in memory
-      const withdrawnTask = lastTask;
-
-      clearLastTask();    // clear from localStorage
-      setLastTask(null);  // update UI
-      toast.info("Your task has been withdrawn. Undo?", {
-        autoClose: 5000, // auto close after 5 seconds
-        closeOnClick: false,
-        position: "top-right",
-        draggable: false,
-        hideProgressBar: false,
-        pauseOnHover: true,
-        onClick: () => handleUndoWithdraw(withdrawnTask),
+      const token = TokenManager.getAccessToken();
+      console.log("🔐 Token check:", {
+        userLoading,
+        userData: !!userData,
+        tokenAvailable: !!token,
+        token: token ? `${token.substring(0, 10)}...` : 'None',
       });
-    
+      
+      if (!token) {
+        console.error("No authentication token found on dashboard");
+        
+        // If we have user data but no token, there's an inconsistency
+        if (userData) {
+          console.error("Inconsistent state: User data exists but no token found");
+          // Consider redirecting to login or refreshing tokens
+        }
+      } else {
+        console.log("✅ Token found and valid");
+      }
+    };
+
+    checkToken();
+  }, [userLoading, userData]);
+
+    useEffect(() => {
+      if (!lastTask?.id) {
+        console.log('⏸️ No task ID available, skipping applications fetch');
+        setApplications([]);
+        return;
+      }
+
+      console.log('🔍 Fetching applications for task ID:', lastTask.id);
+      fetchApplications(lastTask.id);
+
+      // Set up interval to refresh applications every 30 seconds
+      const interval = setInterval(() => {
+        // Double-check we still have a valid task ID
+        if (lastTask?.id) {
+          console.log('🔄 Polling for applications...');
+          fetchApplications(lastTask.id);
+
+        } else {
+          console.log('⏸️ No task ID, clearing interval');
+          clearInterval(interval);
+        }
+      }, 30000);
+
+      return () => {
+        console.log('🧹 Cleaning up applications interval');
+        clearInterval(interval);
+      };
+    }, [lastTask?.id, refreshTrigger]);
+
+  const handleAcceptOffer = async (applicationId: string) => {
+    try {
+      const token = TokenManager.getAccessToken();
+      const response = await fetch(`${API_URL}/applications/${applicationId}/status/`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: "accepted"
+        }),
+      });
+
+      if (response.ok) {
+        toast.success('Offer accepted successfully!');
+        setShowApplicantsModal(false);
+        // Refresh applications list
+        if (lastTask?.id) {
+          fetchApplications(lastTask.id);
+        }
+      } else {
+        const errorData = await response.json();
+        toast.error('Failed to accept offer');
+      }
+    } catch (error) {
+      console.error('Error accepting offer:', error);
+      toast.error('Error accepting offer');
+    }
   };
 
-  const handleUndoWithdraw = (withdrawnTask: any) => {
-  // Save task back to localStorage
-  saveTaskToStorage(withdrawnTask);
-  setLastTask(withdrawnTask);
-  toast.success("Your task has been restored!");
-};
+  const handleRejectOffer = async (applicationId: string) => {
+    try {
+      const token = TokenManager.getAccessToken();
+      const response = await fetch(`${API_URL}/applications/${applicationId}/status/`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: "rejected"
+        }),
+      });
 
-  const saveTaskToStorage = (task: any) => {
-    if (!userData?.id) {
-      console.error("No user ID available to save task");
-      return;
+      if (response.ok) {
+        toast.success('Offer rejected');
+        // Refresh applications list
+        if (lastTask?.id) {
+          fetchApplications(lastTask.id);
+        }
+      } else {
+        const errorData = await response.json();
+      toast.error(errorData.detail || 'Failed to reject offer');
     }
-    
-    const userSpecificKey = `lastPostedTask_${userData.id}`;
-    const taskWithUserId = {
-      ...task,
-      userId: userData.id, // Add user ID to the task
-      timestamp: new Date().toISOString()
+    } catch (error) {
+      console.error('Error rejecting offer:', error);
+      toast.error('Error rejecting offer');
+    }
+  };
+  
+  const transformApplicationData = (backendData: any[], task: any) => {
+
+    if (!Array.isArray(backendData)) {
+      console.warn('transformApplicationData: backendData is not an array:', backendData);
+      return [];
+    }
+    return backendData.map((app) => {
+      const mockRating = Math.random() * 1 + 4; // Random rating between 4.0 and 5.0
+      const mockCompletedTasks = Math.floor(Math.random() * 50) + 1;
+      const mockCompletionRate = Math.floor(Math.random() * 10) + 90; // 90-99%
+      
+      return {
+        id: app.id,
+        runnerId: app.runner,
+        runnerName: app.runner_name,
+        runnerPhoto: '/default-avatar.png',
+        offerPrice: app.offer_amount,
+        proposedDeadline: task?.deadline || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        personalMessage: app.message,
+        status: app.status,
+        rating: parseFloat(mockRating.toFixed(1)),
+        completedTasks: mockCompletedTasks,
+        completionRate: mockCompletionRate,
+        taskType: task?.type || 'general',
+        location: task?.location || 'Unknown',
+        distance: `${(Math.random() * 5 + 1).toFixed(1)}km`, // Random distance 1.0-6.0km
+        isVerified: Math.random() > 0.3, // 70% chance of being verified
+        isRecommended: Math.random() > 0.7, // 30% chance of being recommended
+        estimatedCompletion: 'within 2 hours',
+        created_at: app.created_at
+      };
+    });
+  };
+      // Fetch applications for the last posted task
+      const fetchApplications = async (errandId: string) => {
+        if (!errandId || typeof errandId !== 'string') {
+          console.error('❌ Invalid errandId:', errandId);
+          setApplications([]);
+          return;
+        }
+
+        try {
+          const token = TokenManager.getAccessToken();
+          if (!token) {
+            console.error('No authentication token found');
+            return;
+          }
+
+          console.log('🔍 Fetching applications from:', `${API_URL}/errands/${errandId}/applications/`);
+          const response = await fetch(`${API_URL}/errands/${errandId}/applications/`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          if (response.ok) {
+            const applicationsData = await response.json();
+            console.log('✅ Applications fetched:', {
+              count: Array.isArray(applicationsData) ? applicationsData.length : 'unknown',
+              data: applicationsData
+            });
+            const applicationsArray = Array.isArray(applicationsData) 
+            ? applicationsData 
+            : applicationsData?.results 
+            || applicationsData?.applications 
+            || applicationsData?.data 
+            || [];
+
+            console.log('🔄 Raw applications array:', applicationsArray);
+            const transformedApplications = transformApplicationData(applicationsArray, lastTask);
+            console.log('✅ Transformed applications:', transformedApplications);
+
+            setApplications(transformedApplications);
+
+            if (transformedApplications.length > 0 && applications.length === 0) {
+              toast.info(`${transformedApplications.length} new application${transformedApplications.length > 1 ? 's' : ''} received!`);
+            }
+          } else if (response.status === 404) {
+            console.log('No applications endpoint found for this errand.');
+            setApplications([]);
+          } else if (response.status === 401) {
+            console.error('🔐 Unauthorized - token may be expired');
+            // Handle token refresh or redirect to login
+            setApplications([]);
+          } else {
+            console.error('Failed to fetch applications:', response.status);
+            setApplications([]);
+          }
+        } catch (error) {
+          console.error('Error fetching applications:', error);
+          setApplications([]);
+        }
+      };
+
+      const handleRefreshApplications = () => {
+        if (lastTask?.id) {
+          console.log('🔄 Manual refresh triggered');
+          fetchApplications(lastTask.id);
+          toast.info('Refreshing applications...');
+        }
+      };
+
+      const handleViewProfile = (runnerId: string) => {
+      // Navigate to runner's profile page or show profile modal
+      router.push(`/runner/profile/${runnerId}`);
     };
     
-    localStorage.setItem(userSpecificKey, JSON.stringify(taskWithUserId));
-    setLastTask(taskWithUserId);
-    console.log("Task saved for user:", userData.id);
-  };
+    useEffect(() => {
+      console.log("🔍 TaskerDashboard Debug:", {
+        userData,
+        userLoading,
+        userIdFromUserContext: userData?.id,
+        userIdFromParams: params?.id,
+        userDataAvailable: !!userData,
+        userRole: userData?.role
+      });
+      
+      // Check if we should show terms modal
+      if (userData?.id) {
+        const acceptedUsers = JSON.parse(localStorage.getItem("acceptedUsers") || "{}");
+        const userRecord = acceptedUsers[userData.id];
+        const isNewUser = localStorage.getItem("isNewUser") === "true";
+        
+        console.log("📋 Terms Check:", {
+          userId: userData.id,
+          hasUserRecord: !!userRecord,
+          userRecord,
+          isNewUser,
+          shouldShowTerms: !userRecord || isNewUser
+        });
+        
+        if ((!userRecord || isNewUser) && userData.id) {
+          setShowTerms(true);
+          localStorage.removeItem("isNewUser");
+        } else {
+          console.log("✅ Terms already accepted or no user ID");
+          setShowTerms(false);
+        }
+      }
+    }, [userData, userLoading, params?.id]);
+    
+    const handleTermsAgree = () => {
+      console.log("Terms agreed, closing modal");
+      setShowTerms(false);
+    }
+    const handleWithdrawTask = () => {
+      if (!lastTask) return;
+      setShowWithdrawConfirm(true)
+        // Temporarily store the withdrawn task in memory
+        const withdrawnTask = lastTask;
+        
+        // Remove from localStorage and update runner dashboard
+        const syncSuccess = updateTaskStatus(lastTask.id, 'withdrawn');
+
+        clearLastTask();    // clear from localStorage
+        setLastTask(null);  // update UI
+        setShowWithdrawConfirm(false)
+
+
+        toast.info("Your task has been withdrawn. Undo?", {
+          autoClose: 5000, // auto close after 5 seconds
+          closeOnClick: false,
+          position: "top-right",
+          draggable: false,
+          hideProgressBar: false,
+          pauseOnHover: true,
+          onClick: () => handleUndoWithdraw(withdrawnTask),
+        });
+        if (!syncSuccess) {
+          console.warn('⚠️ Task might still appear on runner dashboard');
+        }
+      };
+
+    const handleUndoWithdraw = (withdrawnTask: any) => {
+      const success = saveTaskToStorage(withdrawnTask);
+      if (success) {
+        setLastTask(withdrawnTask);
+        toast.success("Your task has been restored!");
+      } else {
+        toast.error("Failed to restore task");
+      }
+    };
+
+
 
   useEffect(() => {
-    console.log("🔍 User Context Debug:", {
-      userData,
-      userLoading,
-      userIdFromParams: userId,
-      userDataId: userData?.id
-    });
-  }, [userData, userLoading, userId]);
-
-  useEffect(() => {
-     // Debug: Check all storage locations
-    console.log("🔐 Token Debug Info:", {
-      localStorageToken: localStorage.getItem("access_token"),
-      sessionStorageToken: sessionStorage.getItem("access_token"),
-      localStorageRefresh: localStorage.getItem("refresh_token"),
-      sessionStorageRefresh: sessionStorage.getItem("refresh_token"),
-      fullURL: window.location.href,
-      timestamp: new Date().toISOString()
-    });
+    // Wait for user context to load
+    if (userLoading) return;
 
     const token = TokenManager.getAccessToken();
-    console.log("Dashboard token:", token ? "Available" : "Missing");
+    console.log("Dashboard auth check:", {
+      userLoading,
+      userData: !!userData,
+      token: token ? "Available" : "Missing"
+    });
     
     if (!token) {
       console.error("No authentication token found on dashboard");
-      // You might want to redirect to login or handle this case
+      if (userData) {
+        console.error("Auth inconsistency: User data exists but token missing");
+      }
+    } else {
+      console.log("✅ Dashboard authentication verified");
     }
 
     // Check if user is new (first time visiting dashboard after signup)
-    const isNewUser = localStorage.getItem("isNewUser") === "true"
-    const termsAccepted = localStorage.getItem("termsAccepted") === "true"
-   
+    const isNewUser = localStorage.getItem("isNewUser") === "true";
+    const termsAccepted = localStorage.getItem("termsAccepted") === "true";
     
     if (!termsAccepted || isNewUser) {
       setShowTerms(true);
       localStorage.removeItem("isNewUser");
     }
-  }, []);
+  }, [userLoading, userData]); // Add dependencies
 
-  const handleTermsAgree = () => {
-    console.log("Terms agreed, closing modal");
-    setShowTerms(false);
-  }
    
   useEffect(() => {
     if (!userData?.id) return;
     
     const loadedTask = getLastTask();
-    console.log("📦 Loaded task from storage:", loadedTask);
+    console.log("Loaded task from storage:", loadedTask);
     
     if (loadedTask) {
       setLastTask(loadedTask);
+     if (loadedTask.id) {
+        fetchApplications(loadedTask.id);
+      }
     } else {
       setLastTask(null);
     }
   }, [userData?.id, getLastTask]);
+
+  useEffect(() => {
+    if (lastTask) {
+      console.log("🔍 Task ID Debug:", {
+        taskId: lastTask.id,
+        taskIdType: typeof lastTask.id,
+        taskData: lastTask
+      });
+    }
+  }, [lastTask]);
+
+  const handleTaskCreation = async (taskData: any) => {
+    try {
+      const token = TokenManager.getAccessToken();
+      console.log('📤 Creating task on backend...', {
+        taskData,
+        hasToken: !!token
+      });
+      const response = await fetch(`${API_URL}/posted-errands/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(taskData)
+      });
+      
+      if (response.ok) {
+      const savedTask = await response.json();
+
+      await new Promise(resolve => setTimeout(resolve, 500));
+  
+      // NOW sync with the backend UUID
+      syncTaskToRunners(savedTask);
+      console.log("✅ Task created with backend UUID:", {
+        id: savedTask.id,
+        idType: typeof savedTask.id,
+        fullResponse: savedTask
+      });
+      
+      const userFirstName = userData?.firstName || userData?.first_name || "Anonymous";
+      const userLastName = userData?.lastName || userData?.last_name || "User";
+      const userProfilePhoto = userData?.profilePhoto || userData?.profile_photo || "/default-avatar.png";
+
+      const taskWithBackendId = {
+        ...savedTask, // This contains the real UUID from backend
+        id: savedTask.id, // Use the backend UUID
+        createdAt: new Date().toISOString(),
+
+        price_min: savedTask.price_min || savedTask.price,
+        price_max: savedTask.price_max || savedTask.price,
+        task_type: savedTask.task_type || savedTask.type || "General",
+        user: savedTask.user || {
+          first_name: userFirstName,
+          last_name: userLastName,
+          profile_photo: userProfilePhoto
+        }
+      };
+      console.log('🔄 Attempting to sync task to runners:', taskWithBackendId);
+      const syncSuccess = syncTaskToRunners(taskWithBackendId);
+      console.log('🔄 Task sync result:', syncSuccess);
+
+      // Save to storage with the REAL UUID
+      const saveSuccess = saveTaskToStorage(taskWithBackendId);
+      
+      if (saveSuccess && syncSuccess) {
+        return savedTask;
+      } else {
+        console.error("Failed to save task to storage");
+        return null;
+      }
+    } else {
+      console.error('❌ Task creation failed:', response.status);
+      return null;
+    }
+  } catch (error) {
+    console.error('Error creating task:', error);
+    return null;
+  }
+}
+  useEffect(() => {
+    if (lastTask) {
+      console.log('🔍 VERIFYING TASK SYNC - COMPREHENSIVE CHECK:');
+      
+      // Check all available tasks in localStorage
+      const availableTasks = Object.keys(localStorage)
+        .filter(k => k.startsWith('available_task_'))
+        .map(k => ({ 
+          key: k, 
+          data: JSON.parse(localStorage.getItem(k) || '{}'),
+          exists: !!localStorage.getItem(k)
+        }));
+      
+      console.log('📋 All available tasks in localStorage:', availableTasks);
+      
+      // Check if current task exists in available tasks
+      const currentTaskInAvailable = availableTasks.find(task => 
+        task.data.id === lastTask.id
+      );
+      
+      console.log('✅ Current task sync status:', {
+        taskerTaskId: lastTask.id,
+        foundInAvailableTasks: !!currentTaskInAvailable,
+        availableTaskCount: availableTasks.length,
+        currentTaskData: currentTaskInAvailable?.data
+      });
+    }
+  }, [lastTask]);
 
   const errandOptions = [
     { name: "Local Micro Errand", icon: "/local.svg", label: "Quick task around your area" },
@@ -167,7 +536,7 @@ export default function TaskerDashboard() {
     commonErrand: "-",
     avgCostPerErrand: 0,
   });
-
+  
   const config = {
     public_key: process.env.NEXT_PUBLIC_FLW_PUBLIC_KEY!,
     tx_ref: Date.now().toString(),
@@ -177,12 +546,12 @@ export default function TaskerDashboard() {
     customer: {
       email: userData?.email || 'user@gmail.com',
       phone_number: userData?.phone || '070********',
-      name: `${userData?.firstName || ""} ${userData?.lastName || ""}`.trim() || 'Anonymous User',
+      name: `${userData?.firstName || userData?.first_name || ""} ${userData?.lastName || userData?.last_name || ""}`.trim() || 'Anonymous User',
     },
     customizations: {
       title: 'Errand Tribe Wallet Funding',
       description: 'Fund your wallet to start running errands',
-      logo: '/logo.png',
+      logo: '/dashboardlogo.svg',
     },
   };
 
@@ -194,24 +563,83 @@ export default function TaskerDashboard() {
     setIsFundModalOpen(false);
     setAmount("");
   }
-
+  
   const fwConfig = {
     ...config,
     text: 'Pay Now',
     callback: handlePaymentSuccess,
     onClose: () => console.log("Payment closed"),
   };
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen bg-[#F2F2FD] items-center justify-center">
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-[#424BE0] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
+  // Add this to your TaskerDashboard component
+const TaskCreationDebug = () => {
+  const { getAllAvailableTasks } = useSharedTaskStorage();
+  
+  useEffect(() => {
+    console.log("🔍 TASKER DEBUG - Current state:", {
+      lastTask: lastTask,
+      localStorageTasks: Object.keys(localStorage).filter(key => 
+        key.startsWith('available_task_') || key.startsWith('lastPostedTask_')
+      ),
+      availableTasksCount: getAllAvailableTasks().length
+    });
+  }, [lastTask, getAllAvailableTasks]);
+
+    return (
+      <div className="p-4 bg-green-50 border border-green-200 rounded-lg mb-4">
+        <h4 className="font-semibold text-sm mb-2 text-green-800">Task Creation Debug:</h4>
+        <div className="text-xs space-y-1">
+          <p><strong>Last Task:</strong> {lastTask ? lastTask.title : 'None'}</p>
+          <p><strong>Last Task ID:</strong> {lastTask ? lastTask.id : 'None'}</p>
+          <p><strong>Available Tasks in Storage:</strong> {getAllAvailableTasks().length}</p>
+          <button 
+            onClick={() => {
+              console.log("🔍 Full task creation debug:", {
+                lastTask,
+                localStorage: Object.keys(localStorage)
+                  .filter(k => k.startsWith('available_task_'))
+                  .map(k => ({ key: k, data: JSON.parse(localStorage.getItem(k) || '{}') })),
+                allStorage: Object.keys(localStorage)
+              });
+            }}
+            className="bg-green-500 text-white px-2 py-1 rounded text-xs mt-1"
+          >
+            Inspect Task Creation
+          </button>
+        </div>
+      </div>
+    );
+  };
   return (
     <div className="flex min-h-screen bg-[#F2F2FD] text-[#1E1E1E] flex-col md:flex-row overflow-hidden">
-      {showTerms && userId && (
+      {showTerms && userData?.id && (
         <TermsModal
-          userId={userId}
+          userId={userData?.id}
           role="tasker"
           onAgree={handleTermsAgree}
         />
       )}
       
+      <ApplicantsReviewModal
+        isOpen={showApplicantsModal}
+        onClose={() => setShowApplicantsModal(false)}
+        applicants={applications}
+        taskTitle={lastTask?.title || 'Task'}
+        taskType={lastTask?.type || 'general'} 
+        onAcceptOffer={handleAcceptOffer}
+        onRejectOffer={handleRejectOffer}
+        onViewProfile={handleViewProfile}
+        />
       {/* Sidebar (desktop) */}
       <div className="hidden md:flex h-screen sticky top-0">
         <SideBar userType="tasker" />
@@ -304,6 +732,7 @@ export default function TaskerDashboard() {
           <AnimatePresence>
             {isFundModalOpen && (
               <motion.div
+              key="fund-modal"
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
@@ -350,6 +779,7 @@ export default function TaskerDashboard() {
             <AnimatePresence>
               {showWithdrawConfirm && (
                 <motion.div
+                key="withdraw-confirm-modal"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
@@ -357,6 +787,7 @@ export default function TaskerDashboard() {
                   className="fixed inset-0 bg-black/30 backdrop-blur-sm flex justify-center items-center z-50"
                 >
                   <motion.div
+                  key="withdraw-confirm-content"
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.9, opacity: 0 }}
@@ -414,7 +845,7 @@ export default function TaskerDashboard() {
 
           {/* Task Section */}
           <div className="px-4">
-            {lastTask ? (
+            {lastTask && <TaskCreationDebug/> ? (
               <div className="w-full max-w-7xl mx-auto">
                 {/* Green background container with 90% width */}
                 <div className="w-[90%] mx-auto bg-[#D3FEB0]/30 rounded-2xl shadow-md p-6 lg:p-8 relative">
@@ -430,25 +861,64 @@ export default function TaskerDashboard() {
                       <p className="text-black ml-6 mb-4 font-semibold text-xl lg:text-3xl max-w-xs">
                         Sit Tight and Let us Find Runners For You
                       </p>
-                      <button
-                        onClick={handleWithdrawTask}
-                        className="text-white ml-6 mt-6 text-sm bg-[#F54900] px-6 py-3 rounded-xl hover:bg-[#e44100] transition cursor-pointer">
-                        Withdraw Task
-                      </button>
 
-                      {applications.length > 0 && (
-                        <div className="flex items-center gap-3 mt-4">
-                          <p className="text-sm text-gray-800 font-medium">
-                            {applications.length} runner(s) applied
-                          </p>
+                      {/* Applications Section */}
+                      <div className="ml-6 mt-6 bg-white rounded-xl p-4 shadow-sm max-w-md">
+                        {applications.length > 0 ? (
+                          
+                          <div className="flex flex-col gap-3">
+                            {/* Applications count and review button */}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <FaUser className="text-[#424BE0] text-lg" />
+                                <span className="text-sm font-medium text-gray-700">
+                                  {applications.length} application{applications.length !== 1 ? 's' : ''}
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => setShowApplicantsModal(true)}
+                                className="bg-[#424BE0] text-white text-sm px-4 py-2 rounded-full hover:bg-[#353CCB] transition cursor-pointer"
+                              >
+                                Review
+                              </button>
+                            </div>
+                            
+                            {/* Runners are interested message */}
+                            <p className="text-xs text-gray-500">
+                              Runners are interested!
+                            </p>
+
+                            {applications.length === 0 && (
+                              <div className="flex flex-col gap-2">
+                                <p className="text-sm text-gray-600">
+                                  Waiting for runners to apply...
+                                </p>
+                                <button
+                                  onClick={handleRefreshApplications}
+                                  className="text-[#424BE0] text-xs hover:underline"
+                                >
+                                  Refresh
+                                </button>
+                              </div>
+                            )}
+                            {/* Withdraw button */}
+                            <button
+                              onClick={handleWithdrawTask}
+                              className="text-white text-sm bg-[#F54900] px-4 py-2 rounded-xl hover:bg-[#e44100] transition cursor-pointer w-full mt-2"
+                            >
+                              Withdraw Task
+                            </button>
+                          </div>
+                        ) : (
+                          /* Only show withdraw button when no applications */
                           <button
-                            onClick={() => setShowApplicantsModal(true)}
-                            className="bg-[#424BE0] text-white text-sm px-4 py-2 rounded-full hover:bg-[#353CCB] transition"
+                            onClick={handleWithdrawTask}
+                            className="text-white text-sm bg-[#F54900] px-6 py-3 rounded-xl hover:bg-[#e44100] transition cursor-pointer w-full"
                           >
-                            Review
+                            Withdraw Task
                           </button>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex-1 w-full">

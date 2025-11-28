@@ -1,30 +1,36 @@
 // types/task.ts
 export interface BaseTaskData {
   id: string;
-  type: string;
+  task_type: string;
   title: string;
   location: string;
   description: string;
   deadline: Date | string;
   price: number;
+  price_min: number;
+  price_max: number;
   status: "posted" | "in-progress" | "completed" | "cancelled";
   createdAt: string;
   startDate?: Date | string | null;
   time?: string;
+  userId?: string; // ✅ Add userId for user-specific storage
+  timestamp?: string; // ✅ Add timestamp for when the task was saved
 }
 
 export interface LocalMicroTaskData extends BaseTaskData {
-  type: "Local Errand";
+  task_type: "Local Errand";
   title: string;
   description: string;
   location: string;
   deadline: Date | string;
   price: number;
+  price_min: number;
+  price_max: number;
   imagePreview?: string;
 }
 
 export interface SupermarketTaskData extends BaseTaskData {
-  type: "Supermarket Runs";
+  task_type: "Supermarket Runs";
   title: string;
   description: string;
   shoppingList?: string[];
@@ -32,11 +38,13 @@ export interface SupermarketTaskData extends BaseTaskData {
   deadline: Date | string;
   dropoff: string;
   price: number;
+  price_min: number;
+  price_max: number;
   imagePreview?: string;
 }
 
 export interface PickupDeliveryTaskData extends BaseTaskData {
-  type: "Pickup & Delivery";
+  task_type: "Pickup & Delivery";
   title: string;
   details: string,
   deadline: Date | string;
@@ -49,11 +57,13 @@ export interface PickupDeliveryTaskData extends BaseTaskData {
   note: string;
   imagePreview?: string;
   price: number;
+  price_min: number;
+  price_max: number;
   urgent: boolean;
 }
 
 export interface CareTaskData extends BaseTaskData {
-  type: "Care Task";
+  task_type: "Care Task";
   title: string;
   deadline: Date | string;
   location: string;
@@ -68,10 +78,12 @@ export interface CareTaskData extends BaseTaskData {
   weeklyDays: string[];
   preferredRunner: string;
   price: number;
+  price_min: number;
+  price_max: number;
 }
 
 export interface VerifyItTaskData extends BaseTaskData {
-  type: "Verify It";
+  task_type: "Verify It";
   title: string;
   deadline: Date | string;
   verificationType: string;
@@ -84,6 +96,8 @@ export interface VerifyItTaskData extends BaseTaskData {
   contactName: string;
   contactPhone: string;
   price: number;
+  price_min: number;
+  price_max: number;
   imagePreview?: string;
 }
 

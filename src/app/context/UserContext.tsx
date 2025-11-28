@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { TokenManager } from "../utils/tokenUtils";
 
 interface UserData {
   id: string;
@@ -21,7 +22,7 @@ interface UserContextType {
   userData: UserData | null;
   setUserData: (data: UserData | null) => void;
   updateProfilePhoto: (photoUrl: string) => void;
-  login: (userData: UserData, tokens: { access: string; refresh: string }) => void;
+  login: (userData: UserData, tokens: { access: string; refresh: string }, rememberMe?: boolean) => void;
   logout: () => void;
   isLoading: boolean;
   setAuthTokens: (tokens: { access: string; refresh: string }) => void;
@@ -37,46 +38,46 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  // 🧩 Load user data from storage when app starts
+  // Load user data from storage when app starts
   useEffect(() => {
     const initializeAuth = async () => {
       try {
+        console.log('Initializing user context...');
+
         const savedUserData = localStorage.getItem("userData");
-        const accessToken =
-          sessionStorage.getItem("access_token") ||
-          localStorage.getItem("access_token");
-        const refreshToken =
-          sessionStorage.getItem("refresh_token") ||
-          localStorage.getItem("refresh_token");
+        const token = TokenManager.getAccessToken();
 
-        if (!savedUserData || !accessToken) {
+        console.log("Auth initialization:", { 
+          hasUserData: !!savedUserData, 
+          hasToken: !!token,
+          token: token ? `${token.substring(0, 10)}...` : 'None'
+        });
+
+        if (!savedUserData || !token) {
+          console.log("No saved data or token, skipping auth init");
           setIsLoading(false);
           return;
         }
 
-        console.log("Initializing auth:", { savedUserData, accessToken, refreshToken })
-
-        if (!savedUserData || !accessToken) {
-          setIsLoading(false);
-          return;
-        }
-
-        const parsedData: UserData = JSON.parse(savedUserData);
-
-        // If token expired, try refresh
-        if (isTokenExpired(accessToken) && refreshToken) {
+        // Validate token and load user data
+        if (TokenManager.isTokenExpired(token)) {
           console.log("Token expired, attempting refresh...");
-          const success = await refreshTokenAndLoadUser(refreshToken);
-          if (!success){
-            console.log("Token refresh failed, clearing auth data")
+          const newToken = await TokenManager.refreshAccessToken();
+          if (!newToken) {
+            console.log("Token refresh failed, clearing auth");
             clearAuthData();
+            setIsLoading(false);
+            return;
           }
-        } else {
-          console.log("Token valid, setting user data");
-          setUserDataState(parsedData);
+          console.log("✅ Token refreshed during init");
         }
+
+        console.log("✅ Setting user data from storage");
+        const parsedData: UserData = JSON.parse(savedUserData);
+        setUserDataState(parsedData);
+        
       } catch (err) {
-        console.error("Error initializing auth:", err);
+        console.error("❌ Error initializing auth:", err);
         clearAuthData();
       } finally {
         setIsLoading(false);
@@ -85,78 +86,28 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
     initializeAuth();
   }, []);
-
-  // 🧠 Decode and check token expiry
-  const isTokenExpired = (token: string): boolean => {
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      return payload.exp * 1000 < Date.now();
-    } catch {
-      return true;
-    }
-  };
-
-  // 🔄 Refresh token if expired
-  const refreshTokenAndLoadUser = async (refreshToken: string): Promise<boolean> => {
-    try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      console.log("Refreshing token with URL:", `${API_URL}/auth/token/refresh/`)
-
-      const response = await fetch(`${API_URL}/auth/token/refresh/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh: refreshToken }),
+  // 🧹 Clear all auth data
+    const clearAuthData = () => {
+      console.log("🧹 Clearing auth data");
+      
+      // Clear tokens using TokenManager
+      TokenManager.clearTokens();
+      
+      // Clear user data
+      const itemsToClear = [
+        "userData",
+        "rememberedEmail",
+        "current_user",
+        "signup_email",
+      ];
+      
+      itemsToClear.forEach((key) => {
+        localStorage.removeItem(key);
+        sessionStorage.removeItem(key);
       });
 
-      if (!response.ok){
-        console.error("Token refresh failed with status:", response.status)
-        throw new Error("Token refresh failed");
-      }
-
-      const data = await response.json();
-      console.log("Token refresh successful")
-
-      localStorage.setItem("access_token", data.access);
-      sessionStorage.setItem("access_token", data.access);
-
-      const savedUserData =
-        localStorage.getItem("userData") || sessionStorage.getItem("current_user");
-      if (savedUserData) {
-        console.log("Setting user data after token refresh")
-        setUserDataState(JSON.parse(savedUserData));
-      }
-
-      return true;
-    } catch (err) {
-      console.error("Refresh failed:", err);
-      return false;
-    }
-  };
-
-  const refreshToken = async () => {
-    const token =
-      localStorage.getItem("refresh_token") ||
-      sessionStorage.getItem("refresh_token");
-    if (!token) return false;
-    return await refreshTokenAndLoadUser(token);
-  };
-
-  // 🧹 Clear all auth data
-  const clearAuthData = () => {
-    [
-      "userData",
-      "access_token",
-      "refresh_token",
-      "rememberedEmail",
-      "current_user",
-      "signup_email",
-    ].forEach((key) => {
-      localStorage.removeItem(key);
-      sessionStorage.removeItem(key);
-    });
-
-    setUserDataState(null);
-  };
+      setUserDataState(null);
+    };
 
   const getDefaultAvatar = (role: string) => {
     if (role === "tasker") return "/tasker-avatar.png";
@@ -191,7 +142,16 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const login = (userData: UserData, tokens: { access: string; refresh: string }) => {
+  const login = (userData: UserData, tokens: { access: string; refresh: string }, rememberMe: boolean = true) => {
+    console.log("🔐 UserContext.login called with:", {
+      userData,
+      tokens: tokens ? {
+        access: tokens.access ? `${tokens.access.substring(0, 20)}...` : 'No access token',
+        refresh: tokens.refresh ? `${tokens.refresh.substring(0, 20)}...` : 'No refresh token'
+      } : 'No tokens',
+      rememberMe
+    });
+
     const normalizedData: UserData = {
       id: userData.id,
       firstName: userData.firstName || userData.first_name || "",
@@ -205,15 +165,14 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     console.log("Login with user data:", normalizedData)
     setUserDataState(normalizedData);
 
-    // Save tokens + user
+    // Save tokens using TokenManager
+    TokenManager.setTokens(tokens.access, tokens.refresh, rememberMe);
+    
+    // Save user data
     localStorage.setItem("userData", JSON.stringify(normalizedData));
-    localStorage.setItem("access_token", tokens.access);
-    localStorage.setItem("refresh_token", tokens.refresh);
-    sessionStorage.setItem("current_user", JSON.stringify(normalizedData));
-    sessionStorage.setItem("access_token", tokens.access);
-    sessionStorage.setItem("refresh_token", tokens.refresh);
   };
 
+    
   const logout = () => {
     console.log("Logging out")
     clearAuthData();
@@ -221,19 +180,21 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const setAuthTokens = (tokens: { access: string; refresh: string }) => {
-    localStorage.setItem("access_token", tokens.access);
-    localStorage.setItem("refresh_token", tokens.refresh);
-    sessionStorage.setItem("access_token", tokens.access);
-    sessionStorage.setItem("refresh_token", tokens.refresh);
+    TokenManager.setTokens(tokens.access, tokens.refresh, true);
   };
 
   const getAccessToken = (): string | null => {
-    return sessionStorage.getItem("access_token") || localStorage.getItem("access_token");
+    return TokenManager.getAccessToken();
+  };
+
+  const refreshToken = async (): Promise<boolean> => {
+    const newToken = await TokenManager.refreshAccessToken();
+    return !!newToken;
   };
 
   const initializeSignupAuth = (userData: UserData, tokens: { access: string; refresh: string }) => {
     console.log("Initializing signup auth")
-    login(userData, tokens);
+    login(userData, tokens, true);
   };
 
   return (

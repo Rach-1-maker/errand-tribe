@@ -75,7 +75,7 @@ export default function WelcomePage({role, userId}: WelcomeAndSecurityCheckProps
       }
 
       console.log("Welcome completed for runner:", userId)
-      
+      localStorage.setItem("isNewUser", "true")
       
       if (isTasker) {
         router.push(`/signup/${role}/${userId}/errand-selection`)
@@ -83,7 +83,7 @@ export default function WelcomePage({role, userId}: WelcomeAndSecurityCheckProps
         setShowSuccess(true)
         setTimeout(() => {
           setShowSuccess(false)
-          router.push(`/runner/dashboard/[id]${userId}`)
+          router.push(`/runner/dashboard/${userId}`)
         }, 3000)
       }
     } catch (error) {

@@ -22,6 +22,7 @@ import { SupermarketTaskData } from "@/app/types/task";
 import { useTaskStorage } from "@/app/hooks/useTaskStorage";
 import { useUser } from "@/app/context/UserContext";
 import { TokenManager } from "@/app/utils/tokenUtils";
+import { syncTaskToRunners } from "@/app/utils/taskSync";
 
 
 type FormStep = "title" | "location" | "details" | "dropoff" | "price";
@@ -327,7 +328,11 @@ export default function SupermarketRunsPage() {
         .map(item => item.name)
         .filter(name => name.trim() !== ""), 
       price: formData.price,
+      price_min: formData.price,
+      price_max: formData.price,
       phone_number: formData.contactPhone, 
+      category: "supermarket",
+      task_type: "supermarket"
     };
 
     console.log("Sending data:", requestData);
@@ -353,27 +358,61 @@ export default function SupermarketRunsPage() {
 
       // ✅ Create the task data for storage
       const taskData: SupermarketTaskData = {
-        id: data.id || `task-${Date.now()}`,
-        type: "Supermarket Runs",
+        id: data.id,
+        task_type: "Supermarket Runs",
         title: formData.title,
         description: formData.title, // Using title as description for now
         shoppingList: formData.items.map(item => item.name).filter(name => name.trim() !== ""),
         location: formData.location,
         dropoff: formData.dropoffLocation,
-        deadline: formData.deadline!,
+        deadline: formData.deadline!.toISOString(),
         price: Number(formData.price),
+        price_min: Number(formData.price),
+        price_max: Number(formData.price),
         status: "posted",
         createdAt: new Date().toISOString(),
         startDate: formData.startDate || null,
         time: formData.time,
         imagePreview: formData.imagePreview || undefined
       };
+      const saveSuccess = saveTaskToStorage(taskData);
 
-      const saveSuccess = saveTaskToStorage(taskData)
-      if (saveSuccess) {
-        console.log("✅ Supermarket task successfully saved to user-specific storage");
+      const syncSuccess = syncTaskToRunners({
+        ...taskData,
+        user: {
+          first_name: userData?.firstName || "Anonymous",
+          last_name: userData?.lastName || "User",
+          profile_photo: userData?.profilePhoto || "/default-avatar.png"
+        }
+      });
+
+      if (syncSuccess) {
+        console.log('✅ Task available to runners');
       } else {
-        console.warn("⚠️ Failed to save task to storage, using fallback");
+        console.warn('⚠️ Task saved but may not be visible to runners');
+      }
+      // ALSO save to shared storage for runners
+      const sharedTaskData = {
+        ...taskData,
+        price_min: Number(formData.price),
+        price_max: Number(formData.price),
+        task_type: "Supermarket Runs",
+        user: {
+          first_name: userData?.firstName || "Anonymous",
+          last_name: userData?.lastName || "User",
+          profile_photo: userData?.profilePhoto || "/default-avatar.png"
+        },
+        created_at: new Date().toISOString(),
+        category: { name: "Supermarket Runs" }
+      };
+
+      const taskKey = `available_task_${data.id}`;
+      localStorage.setItem(taskKey, JSON.stringify(sharedTaskData));
+    
+      if (saveSuccess) {
+        console.log("Supermarket task successfully saved to user-specific storage");
+      } else {
+        console.warn(" Failed to save task to storage, using fallback");
         // Fallback to old method
         localStorage.setItem("lastPostedTask", JSON.stringify(taskData));
       }

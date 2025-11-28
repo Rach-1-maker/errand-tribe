@@ -43,8 +43,12 @@ export default function SideBar({userType, onClose }: SideBarProps) {
       localStorage.removeItem("userData")
       localStorage.removeItem("user")
       sessionStorage.clear()
-      router.push("/login") 
+      setTimeout(() => {
+        router.push("/login")
+      }, 100)
       if (onClose) onClose()
+
+        setTimeout(() => router.push("/login"), 50);
     }
 
   return (

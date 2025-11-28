@@ -9,16 +9,17 @@ import { useRouter } from "next/navigation";
 
 interface TermsModalProps {
   userId: string;
-  role?: string;
+  role?: "tasker" | "runner" | string;
   onAgree: () => void;
 }
 
 const TERMS_VERSION = 1.0 
 
 export default function TermsModal({role, userId, onAgree }: TermsModalProps) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [hasCheckedTerms, setHasCheckedTerms] = useState(false); 
   const router = useRouter()
   const isTasker = role === "tasker"
 
@@ -26,19 +27,34 @@ export default function TermsModal({role, userId, onAgree }: TermsModalProps) {
 
   // Check if user already accepted terms (from localStorage)
   useEffect(() => {
-    if (!userId) return; // wait for user ID
+    if (hasCheckedTerms) return;
+
+    console.log("🔍 TermsModal received userId:", userId);
+    console.log("🔍 TermsModal received role:", role);
+
+    if (!userId || userId === "[id]") {
+      console.error("Invalid userId:", userId);
+      setHasCheckedTerms(true);
+      return;
+    }
 
     const acceptedUsers = JSON.parse(localStorage.getItem("acceptedUsers") || "{}");
     const userRecord = acceptedUsers[userId];
     
     if (!userRecord || userRecord.version !== TERMS_VERSION) {
+      console.log("🔄 Showing terms modal for user:", userId);
       setOpen(true);
+    } else {
+      console.log("✅ User has already accepted terms");
+      setOpen(false);
     }
-  }, [userId]);
+    
+    setHasCheckedTerms(true); // Mark that we've checked
+  }, [userId, role, hasCheckedTerms]);
 
   const handleClose = () => {
     setOpen(false)
-    // Send them back to signup page if they haven't accepted yet
+    // Send them back to the previous signup page if they haven't accepted yet
     if (isTasker) {
       router.push(`/signup/${role}/${userId}/errand-selection`)
     } else {
@@ -48,6 +64,21 @@ export default function TermsModal({role, userId, onAgree }: TermsModalProps) {
   
 
   const handleAgree = async () => {
+     // Enhanced validation
+    if (!userId || userId === "[id]" || userId.includes("[") || userId.includes("]")) {
+      console.error("Invalid userId format:", userId);
+      alert("User ID is missing or invalid. Please try refreshing the page or contact support.");
+      return;
+    }
+
+     // Validate UUID format (basic check)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    
+    if (!uuidRegex.test(userId)) {
+      console.error(" userId is not a valid UUID:", userId);
+      alert("Invalid user ID format. Please try again.");
+      return;
+    }
     try {
       setLoading(true)
       const token = TokenManager.getAccessToken()
@@ -56,6 +87,11 @@ export default function TermsModal({role, userId, onAgree }: TermsModalProps) {
         console.error("No authentication token found")
         throw new Error("Authentication required")
       }
+      console.log("Sending terms acceptance request:");
+      console.log("URL:", `${API_URL}/users/${userId}/terms/`);
+      console.log("UserId:", userId);
+      console.log("Token exists:", !!token)
+
 
       const response = await fetch(`${API_URL}/users/${userId}/terms/`, {
         method: "POST",
@@ -64,28 +100,59 @@ export default function TermsModal({role, userId, onAgree }: TermsModalProps) {
           "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
-          userId,
           terms_accepted: true,
           terms_version: TERMS_VERSION,
           accepted_at: new Date().toISOString(),
         }),
       });
+      console.log("Response status:", response.status);
+      console.log("📡 Response headers:", Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to accept terms");
+      const errorData = await response.json();
+      
+      // ✅ FIX: Handle "terms already accepted" gracefully
+      if (response.status === 400 && errorData.message?.includes("already accepted")) {
+        console.log("✅ Terms were already accepted on backend, saving locally...");
+        // Continue with local storage update
+      } else {
+        throw new Error(errorData.message || `Failed to accept terms: ${response.status}`);
       }
+    } else {
+      const result = await response.json();
+      console.log("Terms accepted successfully:", result);
+    }
 
       // Save locally to prevent popup next time
       const acceptedUsers = JSON.parse(localStorage.getItem("acceptedUsers") || "{}");
-      acceptedUsers[userId] = { accepted: true, version: TERMS_VERSION };
+
+      acceptedUsers[userId] = { accepted: true, version: TERMS_VERSION, acceptedAt: new Date().toISOString()};
       localStorage.setItem("acceptedUsers", JSON.stringify(acceptedUsers));
+
+       // Also clear the isNewUser flag if it exists
+      localStorage.removeItem("isNewUser");
+
+      console.log("✅ Terms saved locally for user:", userId);
 
       // Close modal & notify parent
       setOpen(false);
       onAgree();
     } catch (error) {
-      console.error("Failed to log acceptance:", error);
+      console.error("Failed to accept terms", error);
+      // Even if there's an error, try to save locally to prevent infinite modal
+      try {
+        const acceptedUsers = JSON.parse(localStorage.getItem("acceptedUsers") || "{}");
+        acceptedUsers[userId] = { 
+          accepted: true, 
+          version: TERMS_VERSION, 
+          acceptedAt: new Date().toISOString()
+        };
+        localStorage.setItem("acceptedUsers", JSON.stringify(acceptedUsers));
+        setOpen(false);
+        onAgree();
+      } catch (fallbackError) {
+        console.error("Fallback save also failed:", fallbackError);
+      }
     } finally {
       setLoading(false)
     }
@@ -93,12 +160,13 @@ export default function TermsModal({role, userId, onAgree }: TermsModalProps) {
 
   if (!open) return null;
 
+  
   return (
         <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md bg-black/30">
           <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleClose()}>
             <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl border border-white/10 bg-linear-to-br from-white/80 to-gray-100/70 dark:from-gray-900/80 dark:to-gray-800/80 shadow-2xl backdrop-blur-lg">
               <DialogHeader>
-                <DialogTitle className="text-xl md:text-3xl font-bold text-[#424BE0] text-center dark:text-gray-100">
+                <DialogTitle className="text-lg md:text-2xl font-bold text-[#424BE0] text-center dark:text-gray-100">
                   Terms & Conditions
                 </DialogTitle>
                 <p className="text-sm text-muted-foreground">

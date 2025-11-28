@@ -15,13 +15,10 @@ import { CareTaskData } from "@/app/types/task";
 import { useTaskStorage } from "@/app/hooks/useTaskStorage";
 import { useUser } from "@/app/context/UserContext";
 import { TokenManager } from "@/app/utils/tokenUtils";
+import { syncTaskToRunners } from "@/app/utils/taskSync";
 
 type FormStep = "title" | "location" | "details1" | "details2" | "frequency" | "price";
 
-interface CareItemData {
-  id: string;
- 
-}
 
 interface CareFormData {
   title: string;
@@ -226,30 +223,35 @@ export default function CareTaskPage() {
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
       if (!API_URL) throw new Error("API URL not configured");
 
-      const formDataToSend = new FormData();
-      formDataToSend.append("title", formData.title);
-      formDataToSend.append("start_date", formData.startDate ? formData.startDate.toISOString().split("T")[0] : "");
-      formDataToSend.append("end_date", formData.deadline ? formData.deadline.toISOString().split("T")[0] : "");
-      formDataToSend.append("time", formData.time);
-      formDataToSend.append("location", formData.location);
-      formDataToSend.append("care_type", formData.careType);
-      formDataToSend.append("who_for", formData.whoFor);
-      formDataToSend.append("sensitivities", formData.sensitivities);
-      formDataToSend.append("arrival_request", formData.arrivalRequest);
-      formDataToSend.append("after_completion", JSON.stringify(formData.afterCompletion));
-      if (formData.afterCompletionOther) formDataToSend.append("after_completion_other", formData.afterCompletionOther);
-      if (formData.imageFile) formDataToSend.append("image", formData.imageFile);
-      formDataToSend.append("frequency", formData.frequency);
-      formDataToSend.append("weekly_days", JSON.stringify(formData.weeklyDays));
-      formDataToSend.append("preferred_runner", formData.preferredRunner);
-      formDataToSend.append("price", String(formData.price));
+      const payload = {
+      title: formData.title,
+      start_date: formData.startDate ? formData.startDate.toISOString().split("T")[0] : "",
+      end_date: formData.deadline ? formData.deadline.toISOString().split("T")[0] : "",
+      time: formData.time,
+      location: formData.location,
+      care_type: formData.careType,
+      who_for: formData.whoFor,
+      sensitivities: formData.sensitivities,
+      arrival_request: formData.arrivalRequest,
+      after_completion: formData.afterCompletion,
+      after_completion_other: formData.afterCompletionOther,
+      frequency: formData.frequency,
+      weekly_days: formData.weeklyDays,
+      preferred_runner: formData.preferredRunner,
+      price_min: formData.price,
+      price_max: formData.price,
+      category: "care",
+      task_type: "care"
+      // Note: For images, use a separate upload if needed
+    };
 
       const response = await fetch(`${API_URL}/api/care-tasks/`, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
         },
-        body: formDataToSend,
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -264,14 +266,16 @@ export default function CareTaskPage() {
 
       // ✅ Create the task data for storage
       const taskData: CareTaskData = {
-        id: data.id || `task-${Date.now()}`,
-        type: "Care Task",
+        id: data.id,
+        task_type: "Care Task",
         title: formData.title,
         details: formData.arrivalRequest,
         location: formData.location,
         description: formData.title,
         deadline: formData.deadline!,
         price: formData.price,
+        price_min: formData.price,
+        price_max: formData.price,
         status: "posted",
         createdAt: new Date().toISOString(),
         startDate: formData.startDate || null,
@@ -287,11 +291,43 @@ export default function CareTaskPage() {
         preferredRunner: formData.preferredRunner,
       };
 
-      // ✅ Use the custom hook to save the task
       const saveSuccess = saveTaskToStorage(taskData);
       
+      const syncSuccess = syncTaskToRunners({
+        ...taskData,
+        user: {
+          first_name: userData?.firstName || "Anonymous",
+          last_name: userData?.lastName || "User",
+          profile_photo: userData?.profilePhoto || "/default-avatar.png"
+        }
+      });
+
+      if (syncSuccess) {
+        console.log('✅ Task available to runners');
+      } else {
+        console.warn('⚠️ Task saved but may not be visible to runners');
+      }
+      // ALSO save to shared storage for runners
+      const sharedTaskData = {
+        ...taskData,
+        price_min: Number(formData.price),
+        price_max: Number(formData.price),
+        task_type: "Care Errand",
+        user: {
+          first_name: userData?.firstName || "Anonymous",
+          last_name: userData?.lastName || "User",
+          profile_photo: userData?.profilePhoto || "/default-avatar.png"
+        },
+        created_at: new Date().toISOString(),
+        category: { name: "Care Errand" }
+      };
+
+      const taskKey = `available_task_${data.id}`;
+      localStorage.setItem(taskKey, JSON.stringify(sharedTaskData));
+      // ✅ Use the custom hook to save the task
+      
       if (saveSuccess) {
-        console.log("✅ Care task successfully saved to user-specific storage");
+        console.log("✅Care task saved with UUID:", data.id);
       } else {
         console.warn("⚠️ Failed to save task to storage, using fallback");
         // Fallback to old method

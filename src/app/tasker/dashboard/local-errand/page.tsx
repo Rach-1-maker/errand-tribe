@@ -17,6 +17,7 @@ import { LocalMicroTaskData } from "@/app/types/task";
 import { useUser } from "@/app/context/UserContext";
 import { TokenManager } from "@/app/utils/tokenUtils";
 import { useTaskStorage } from "@/app/hooks/useTaskStorage";
+import { syncTaskToRunners } from "@/app/utils/taskSync";
 
 
 type FormStep = "title" | "location" | "details" | "price";
@@ -151,21 +152,10 @@ export default function ErrandFormPage() {
     setIsPosting(true);
 
     try {
-      let token = TokenManager.getAccessToken()
-
-      if (token && TokenManager.isTokenExpired(token)) {
-        console.log("🔐 Token expired, attempting refresh...");
-        const newToken = await TokenManager.refreshAccessToken();
-        if (newToken) {
-          token = newToken;
-          console.log("🔐 Token refreshed successfully");
-        } else {
-          throw new Error("Session expired. Please log in again.");
-        }
-      }
+      const token = await TokenManager.ensureValidToken()
 
       if (!token) {
-        throw new Error("No authentication token found");
+        throw new Error("Please log in to post a task.");
       }
 
       console.log("🔐 Using token for API call:", token.substring(0, 20) + "...");
@@ -174,7 +164,7 @@ export default function ErrandFormPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: token ? `Bearer ${token}` : ""
+          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
           title: formData.title,
@@ -184,27 +174,55 @@ export default function ErrandFormPage() {
           location: formData.location,
           description: formData.description,
           category: "local_micro",
-          price: formData.price,
+          price: Number(formData.price),
+          // price_min: Number(formData.price),
+          // price_max: Number(formData.price),
         }),
       });
 
       const data = await response.json();
-      if (!response.ok) {
-        console.error("API Error:", data)
-        if (response.status === 401) {
-          throw new Error("Authentication failed.");
-        }
-        throw new Error(data.detail || data.message || "Request failed");
-      }
+      saveTaskToStorage(data);
+      syncTaskToRunners(data);
+      
+      console.log("🔥 RAW RESPONSE FROM BACKEND:", data);
 
-     
+      if (!response.ok) {
+        console.error("API Error:", data);
+        if (response.status === 401) {
+        // Token is invalid, clear and redirect
+          TokenManager.clearTokens();
+          throw new Error("Session expired. Please log in again.");
+      }
+      throw new Error(data.detail || data.message || "Request failed");
+    }
+
+      console.log("✅ Task created with backend UUID:", {
+        id: data.id,
+        idType: typeof data.id,
+        fullResponse: data
+      });
+      
+      const backendId =
+        data.id ||
+        data.task_id ||
+        data.uuid ||
+        data.data?.id ||
+        data.result?.id;
+
+      if (!backendId) {
+        console.error("❌ Backend did not return ID. Raw data:", data);
+        toast.error("Unexpected server response. Could not get task ID.");
+        return;
+      }
       const taskData: LocalMicroTaskData = {
-        id: data.id || `task-${Date.now()}`,
-        type: "Local Errand",
+        id: backendId,
+        task_type: "Local Errand",
         title: formData.title,
         location: formData.location,
-        deadline: formData.deadline!,
+        deadline: formData.deadline?.toISOString() || "",
         price: Number(formData.price),
+        price_min: Number(formData.price),
+        price_max: Number(formData.price),
         status: "posted",
         createdAt: new Date().toISOString(),
         time: formData.time,
@@ -212,12 +230,44 @@ export default function ErrandFormPage() {
         imagePreview: formData.imagePreview || undefined
       }
 
-      if (taskData.deadline && typeof taskData.deadline === 'string') {
-        taskData.deadline = new Date(taskData.deadline);
+      const saveSuccess = saveTaskToStorage(taskData);
+
+      const syncSuccess = syncTaskToRunners({
+        ...taskData,
+        user: {
+          first_name: userData?.firstName || "Anonymous",
+          last_name: userData?.lastName || "User",
+          profile_photo: userData?.profilePhoto || "/default-avatar.png"
+        }
+      });
+      
+      if (syncSuccess) {
+        console.log('✅ Task available to runners');
+      } else {
+        console.warn('⚠️ Task saved but may not be visible to runners');
       }
-      const saveSuccess = saveTaskToStorage(taskData)
+
+      // ALSO save to shared storage for runners
+      const sharedTaskData = {
+        ...taskData,
+        price: Number(formData.price),
+        price_min: Number(formData.price),
+        price_max: Number(formData.price),
+        task_type: "Local Errand",
+        user: {
+          first_name: userData?.firstName || "Anonymous",
+          last_name: userData?.lastName || "User",
+          profile_photo: userData?.profilePhoto || "/default-avatar.png"
+        },
+        created_at: new Date().toISOString(),
+        category: { name: "Local Errand" }
+      };
+      const taskKey = `available_task_${data.id}`;
+      localStorage.setItem(taskKey, JSON.stringify(sharedTaskData));
+      console.log("✅ Task saved for runners with key:", taskKey)
+      
       if (saveSuccess) {
-        console.log("Task successfully saved to user-specific storage")
+        console.log("Local task successfully saved with UUID:", data.id)
       } else {
         console.warn("⚠️ Failed to save task to storage");
         // On success, redirect or show success message
@@ -440,7 +490,7 @@ export default function ErrandFormPage() {
                         <p className="text-red-500 text-sm mt-1">{errors.deadline}</p>
                       )}
                       {showDeadlineCalendar && (
-                        <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-w-xs h-74 p-2">
+                        <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-w-xs p-2">
                           <DayPicker
                             mode="single"
                             selected={formData.deadline ?? undefined}

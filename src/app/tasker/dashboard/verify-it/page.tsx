@@ -17,6 +17,7 @@ import { VerifyItTaskData } from "@/app/types/task";
 import { useTaskStorage } from "@/app/hooks/useTaskStorage";
 import { useUser } from "@/app/context/UserContext";
 import { TokenManager } from "@/app/utils/tokenUtils";
+import { syncTaskToRunners } from "@/app/utils/taskSync";
 
 type FormStep = "title" | "verificationType" | "location" | "details1" | "details2" | "price";
 
@@ -221,6 +222,10 @@ export default function VerifyItPage() {
         contact_phone: formData.contactPhone,
         save_phone: formData.savePhone,
         price: formData.price,
+        price_min: formData.price,
+        price_max: formData.price,
+        category: "verification",
+        task_type: "verification"
       };
 
       const response = await fetch(`${API_URL}/api/verification-tasks/`, {
@@ -244,12 +249,14 @@ export default function VerifyItPage() {
 
       // ✅ Create the task data for storage
       const taskData: VerifyItTaskData = {
-        id: data.id || `task-${Date.now()}`,
-        type: "Verify It",
+        id: data.id,
+        task_type: "Verify It",
         title: formData.title,
         location: formData.location,
-        deadline: formData.deadline!,
+        deadline: formData.deadline!.toISOString(),
         price: formData.price,
+        price_min: formData.price,
+        price_max: formData.price,
         status: "posted",
         createdAt: new Date().toISOString(),
         startDate: formData.startDate || null,
@@ -265,12 +272,45 @@ export default function VerifyItPage() {
         contactPhone: formData.contactPhone,
         imagePreview: formData.imagePreview || undefined,
       };
-
+      
       // ✅ Use the custom hook to save the task
       const saveSuccess = saveTaskToStorage(taskData);
+
+      const syncSuccess = syncTaskToRunners({
+        ...taskData,
+        user: {
+          first_name: userData?.firstName || "Anonymous",
+          last_name: userData?.lastName || "User",
+          profile_photo: userData?.profilePhoto || "/default-avatar.png"
+        }
+      });
+
+      if (syncSuccess) {
+        console.log('✅ Task available to runners');
+      } else {
+        console.warn('⚠️ Task saved but may not be visible to runners');
+      }
+      // ALSO save to shared storage for runners
+      const sharedTaskData = {
+        ...taskData,
+        price_min: Number(formData.price),
+        price_max: Number(formData.price),
+        task_type: "Verify It",
+        user: {
+          first_name: userData?.firstName || "Anonymous",
+          last_name: userData?.lastName || "User",
+          profile_photo: userData?.profilePhoto || "/default-avatar.png"
+        },
+        created_at: new Date().toISOString(),
+        category: { name: "Verify It" }
+      };
+
+      const taskKey = `available_task_${data.id}`;
+      localStorage.setItem(taskKey, JSON.stringify(sharedTaskData));
+      
       
       if (saveSuccess) {
-        console.log("✅ Verify It task successfully saved to user-specific storage");
+        console.log("✅ Verify It task saved with UUID:", data.id);
       } else {
         console.warn("⚠️ Failed to save task to storage, using fallback");
         // Fallback to old method

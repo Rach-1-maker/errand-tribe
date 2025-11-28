@@ -9,22 +9,40 @@ import { CareTaskData, LocalMicroTaskData, PickupDeliveryTaskData, SupermarketTa
 interface TaskSummaryCardProps {
   task: TaskData;
 }
-
+ 
 export default function TaskSummaryCard({ task }: TaskSummaryCardProps) {
+  const isLocalMicroTask = (task: TaskData): task is LocalMicroTaskData => {
+    return task.task_type === "Local Errand";
+  };
+
+  const isSupermarketTask = (task: TaskData): task is SupermarketTaskData => {
+    return task.task_type === "Supermarket Runs";
+  };
+
+  const isPickupDeliveryTask = (task: TaskData): task is PickupDeliveryTaskData => {
+    return task.task_type === "Pickup & Delivery";
+  };
+
+  const isCareTask = (task: TaskData): task is CareTaskData => {
+    return task.task_type === "Care Task";
+  };
+
+  const isVerifyItTask = (task: TaskData): task is VerifyItTaskData => {
+    return task.task_type === "Verify It";
+};
   const renderTaskSpecificDetails = () => {
-    switch (task.type) {
-      case "Local Errand":
-        return <LocalMicroSummary task={task} />;
-      case "Supermarket Runs":
-        return <SupermarketSummary task={task} />;
-      case "Pickup & Delivery":
-        return <PickupDeliverySummary task={task} />;
-      case "Care Task":
-        return <CareTaskSummary task={task} />;
-      case "Verify It":
-        return <VerifyItSummary task={task} />;
-      default:
-        return <DefaultSummary task={task} />;
+    if (isLocalMicroTask(task)) {
+      return <LocalMicroSummary task={task} />;
+    } else if (isSupermarketTask(task)) {
+      return <SupermarketSummary task={task} />;
+    } else if (isPickupDeliveryTask(task)) {
+      return <PickupDeliverySummary task={task} />;
+    } else if (isCareTask(task)) {
+      return <CareTaskSummary task={task} />;
+    } else if (isVerifyItTask(task)) {
+      return <VerifyItSummary task={task} />;
+    } else {
+      return <DefaultSummary task={task} />;
     }
   };
 
@@ -32,7 +50,7 @@ export default function TaskSummaryCard({ task }: TaskSummaryCardProps) {
     <div className="flex-1 bg-white w-[85%] rounded-2xl shadow-md p-6 lg:p-8">
       <div className="flex items-center justify-between mb-1">
         <p className="font-medium  border border-[#424BE0]/20 text-sm px-3 py-1 mb-2 bg-[#424BE0]/25 rounded-full text-[#424BE0]">
-          {task.type}
+          {task.task_type}
         </p>
 
         {/* ✅ Show image preview here */}
@@ -55,8 +73,10 @@ export default function TaskSummaryCard({ task }: TaskSummaryCardProps) {
       
       {/* Common details for all task types */}
       <div className="space-y-2 mb-2">
+      {/* Task-specific details */}
+      {renderTaskSpecificDetails()}
         <div className="flex items-center gap-2 text-gray-600 text-sm">
-          <MdLocationOn className="text-gray-400 text-3xl" />
+          <MdLocationOn className="text-gray-400 text-2xl" />
           <span>{task.location}</span>
         </div>
         
@@ -67,12 +87,10 @@ export default function TaskSummaryCard({ task }: TaskSummaryCardProps) {
         
         <div className="flex items-center gap-2 text-gray-600 text-sm">
           <AiOutlineDollarCircle className="text-gray-400 text-sm" />
-          <span className="font-semibold">Price: ₦{task.price.toLocaleString()}</span>
+          <span className="font-semibold">Price: ₦{task.price_min.toLocaleString()}</span>
         </div>
       </div>
 
-      {/* Task-specific details */}
-      {renderTaskSpecificDetails()}
     </div>
   );
 }
@@ -88,8 +106,6 @@ function LocalMicroSummary({ task }: { task: LocalMicroTaskData }) {
           <span>Start: {new Date(task.startDate).toLocaleDateString()} {task.time && `at ${task.time}`}</span>
         </div>
       )}
-      
-    
     </div>
   );
 }
@@ -120,21 +136,22 @@ function SupermarketSummary({ task }: { task: SupermarketTaskData }) {
   );
 }
 
-// Pickup & Delivery Summary
-function PickupDeliverySummary({ task }: { task: PickupDeliveryTaskData }) {
+// Pickup & Delivery Summary with safe property access
+function PickupDeliverySummary({ task }: { task: Partial<PickupDeliveryTaskData> }) {
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-1 gap-3 text-sm">
         <div>
           <p className="text-gray-600 mb-1 text-xs">Pickup:</p>
-          <p className="font-medium text-sm truncate">{task.pickup}</p>
+          <p className="font-medium text-sm truncate">{task.pickup || "Not specified"}</p>
         </div>
         <div>
           <p className="text-gray-600 mb-1 text-xs">Dropoff:</p>
-          <p className="font-medium text-sm truncate">{task.dropoff}</p>
+          <p className="font-medium text-sm truncate">{task.dropoff || "Not specified"}</p>
         </div>
       </div>
       
+      {/* Safely access optional properties */}
       <div className="grid grid-cols-2 gap-4 text-sm">
         <div className="flex justify-start">
           <span className="text-gray-600 mr-8">Urgent:</span>
@@ -149,10 +166,13 @@ function PickupDeliverySummary({ task }: { task: PickupDeliveryTaskData }) {
         </div>
       </div>
       
-      <div className="flex justify-start text-sm">
-        <span className="text-gray-600 mr-8">Fragile:</span>
-        <span className="font-medium">{task.fragile || "No"}</span>
-      </div>
+      {/* Add null checks for all properties */}
+      {task.fragile !== undefined && (
+        <div className="flex justify-start text-sm">
+          <span className="text-gray-600 mr-8">Fragile:</span>
+          <span className="font-medium">{task.fragile ? "Yes" : "No"}</span>
+        </div>
+      )}
       
       {task.note && (
         <div className="mt-2">

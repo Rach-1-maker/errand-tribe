@@ -21,30 +21,29 @@ export default function TopBar({onMenuClick}: TopBarProps) {
 
   // Determine the profile photo
   const getProfilePhoto = () => {
-    if (isLoading) {
-      return "/user-icon.png"; // Show generic default while loading
-    }
-    
-    // If we have user data with a profile photo, use it
-    if (userData?.profilePhoto) {
-      return userData.profilePhoto;
-    }
-    
-    // If no profile photo but we have user data, return role-specific default
-    if (userData?.role) {
-      return getDefaultAvatar(userData.role);
-    }
-    
-    // Fallback
+    if (isLoading) return "/user-icon.png";
+    if (userData?.profilePhoto) return userData.profilePhoto;
+    if (userData?.role) return getDefaultAvatar(userData.role);
     return "/user-icon.png";
   };
 
   const profilePhoto = getProfilePhoto();
   console.log("👤 TopBar userData:", userData);
 
+  // Role-based message
+  const getWelcomeMessage = () => {
+    if (userData?.role === "runner") {
+      return "🏅 You're a Tier 1 Runner - Local Micro Task Unlocked";
+    }
+    // Tasker message
+    if (userData?.firstName) {
+      return `${userData.firstName}, let's get your first errand done today.`
+    }
+    return "let's get your first errand done today."
+  }
 
   return (
-    <div className="flex justify-between bg-white px-4 py-5 items-center mb-8">
+    <div className="flex justify-between bg-white px-4 py-5 items-center mb-1">
       <div className="flex items-center gap-4">
         {/* Mobile Menu Button - Only show on mobile */}
         {onMenuClick && (
@@ -58,13 +57,11 @@ export default function TopBar({onMenuClick}: TopBarProps) {
         )}
         <div>
           <h1 className="text-xs md:text-xl font-semibold flex">
-            Welcome {userData?.firstName ? `, ${userData.firstName}` : ""} 
+            Welcome {userData?.firstName ?`, ${userData.firstName}` : ""} 
             <span className='hidden md:flex ml-1'>👋</span>
           </h1>
           <p className="hidden md:flex text-gray-500 text-sm">
-            {userData?.firstName
-              ? `${userData.firstName}, let's get your first errand done today`
-              : "Let's get your first errand done today"}
+            {getWelcomeMessage()}
           </p>
         </div>
       </div>

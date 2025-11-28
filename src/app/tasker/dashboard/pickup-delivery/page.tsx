@@ -20,6 +20,7 @@ import { PickupDeliveryTaskData } from "@/app/types/task";
 import { useTaskStorage } from "@/app/hooks/useTaskStorage";
 import { useUser } from "@/app/context/UserContext";
 import { TokenManager } from "@/app/utils/tokenUtils";
+import { syncTaskToRunners } from "@/app/utils/taskSync";
 
 type Step = 1 | 2 | 3 | 4;
 
@@ -200,32 +201,32 @@ export default function PickupAndDeliveryPage() {
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
       if (!API_URL) throw new Error("API URL not configured");
 
-      // Prepare form data for image upload
-      const formData = new FormData();
-      formData.append("title", errandTitle);
-      formData.append("urgent", urgent.toString());
-      formData.append("start_date", startDate?.toISOString() || "");
-      formData.append("deadline", deadline?.toISOString() || "");
-      formData.append("time", time);
-      formData.append("pickup_location", pickup);
-      formData.append("sender_phone", senderPhone);
-      formData.append("dropoff_location", dropoff);
-      formData.append("recipient_phone", recipientPhone);
-      formData.append("signature_required", signatureRequired);
-      formData.append("fragile", fragile);
-      formData.append("note", note);
-      formData.append("price_min", price.toString());
-      formData.append("price_max", price.toString());
-      if (imageFile) {
-        formData.append("image", imageFile);
-      }
 
       const response = await fetch(`${API_URL}/api/errands/pickup-delivery/`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
         },
-        body: formData,
+        body: JSON.stringify({
+        title: errandTitle,
+        urgent: urgent,
+        start_date: startDate?.toISOString(),
+        deadline: deadline?.toISOString(),
+        time: time,
+        pickup_location: pickup,
+        sender_phone: senderPhone,
+        dropoff_location: dropoff,
+        recipient_phone: recipientPhone,
+        signature_required: signatureRequired,
+        fragile: fragile,
+        note: note,
+        price: price,
+        price_min: price,
+        price_max: price,
+        category: "pickup_delivery",
+        task_type: "pickup_delivery",
+        // Note: For images, you might need a separate upload endpoint
+      })
       });
 
       const data = await response.json();
@@ -240,15 +241,17 @@ export default function PickupAndDeliveryPage() {
 
       // ✅ Create the task data for storage
       const taskData: PickupDeliveryTaskData = {
-        id: data.id || `task-${Date.now()}`,
-        type: "Pickup & Delivery",
+        id: data.id,
+        task_type: "Pickup & Delivery",
         title: errandTitle,
         details: note,
         description: note,
         location: pickup,
         dropoff: dropoff,
-        deadline: deadline!,
+        deadline: deadline!.toISOString(),
         price: price,
+        price_min: price,
+        price_max: price,
         status: "posted",
         createdAt: new Date().toISOString(),
         startDate: startDate || null,
@@ -263,11 +266,43 @@ export default function PickupAndDeliveryPage() {
         urgent
       };
 
-      // ✅ Use the custom hook to save the task
       const saveSuccess = saveTaskToStorage(taskData);
+
+      const syncSuccess = syncTaskToRunners({
+        ...taskData,
+        user: {
+          first_name: userData?.firstName || "Anonymous",
+          last_name: userData?.lastName || "User",
+          profile_photo: userData?.profilePhoto || "/default-avatar.png"
+        }
+      });
+
+      if (syncSuccess) {
+        console.log('✅ Task available to runners');
+      } else {
+        console.warn('⚠️ Task saved but may not be visible to runners');
+      }
+
+  // ALSO save to shared storage for runners
+      const sharedTaskData = {
+        ...taskData,
+        price_min: price,
+        price_max: price,
+        task_type: "Pickup & Delivery Errand",
+        user: {
+          first_name: userData?.firstName || "Anonymous",
+          last_name: userData?.lastName || "User",
+          profile_photo: userData?.profilePhoto || "/default-avatar.png"
+        },
+        created_at: new Date().toISOString(),
+        category: { name: "Pickup & Delivery" }
+      };
+      const taskKey = `available_task_${data.id}`;
+      localStorage.setItem(taskKey, JSON.stringify(sharedTaskData));
+      // ✅ Use the custom hook to save the task
       
       if (saveSuccess) {
-        console.log("✅ Pickup & Delivery task successfully saved to user-specific storage");
+        console.log("✅ Pickup & Delivery task saved with UUID:", data.id);
       } else {
         console.warn("⚠️ Failed to save task to storage, using fallback");
         // Fallback to old method
